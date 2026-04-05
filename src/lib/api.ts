@@ -69,6 +69,10 @@ async function request<T>(
                 h2.set("Content-Type", "application/json")
             }
             res = await fetch(`${BASE}${path}`, { ...init, headers: h2 })
+        } else {
+            clearTokens()
+            window.location.href = "/login"
+            throw new ApiError(401, "session expired")
         }
     }
 

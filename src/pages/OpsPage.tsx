@@ -5,7 +5,6 @@ import {
     Card,
     Heading,
     Input,
-    NativeSelect,
     Stack,
     Text,
     Field,
@@ -13,11 +12,21 @@ import {
     Stat,
     Code,
     Checkbox,
+    Select,
+    Portal,
+    createListCollection,
 } from "@chakra-ui/react"
 import type { ExportResult, QualityCheckResult } from "@/types"
 import * as api from "@/lib/api"
-import { toaster } from "@/components/ui/toaster"
+import { toaster } from "@/components/ui/toaster-instance"
 import { LuDownload, LuClipboardCheck } from "react-icons/lu"
+
+const formatOptions = createListCollection({
+    items: [
+        { label: "JSONL", value: "jsonl" },
+        { label: "CSV", value: "csv" },
+    ],
+})
 
 export default function OpsPage() {
     // Export
@@ -81,15 +90,35 @@ export default function OpsPage() {
                             <HStack gap="4" wrap="wrap">
                                 <Field.Root>
                                     <Field.Label>格式</Field.Label>
-                                    <NativeSelect.Root>
-                                        <NativeSelect.Field
-                                            value={exportFormat}
-                                            onChange={(e) => setExportFormat(e.target.value as "jsonl" | "csv")}
-                                        >
-                                            <option value="jsonl">JSONL</option>
-                                            <option value="csv">CSV</option>
-                                        </NativeSelect.Field>
-                                    </NativeSelect.Root>
+                                    <Select.Root
+                                        collection={formatOptions}
+                                        size="sm"
+                                        width="140px"
+                                        value={[exportFormat]}
+                                        onValueChange={(e) => setExportFormat(e.value[0] as "jsonl" | "csv")}
+                                    >
+                                        <Select.HiddenSelect />
+                                        <Select.Control>
+                                            <Select.Trigger>
+                                                <Select.ValueText />
+                                            </Select.Trigger>
+                                            <Select.IndicatorGroup>
+                                                <Select.Indicator />
+                                            </Select.IndicatorGroup>
+                                        </Select.Control>
+                                        <Portal>
+                                            <Select.Positioner>
+                                                <Select.Content>
+                                                    {formatOptions.items.map((item) => (
+                                                        <Select.Item item={item} key={item.value}>
+                                                            {item.label}
+                                                            <Select.ItemIndicator />
+                                                        </Select.Item>
+                                                    ))}
+                                                </Select.Content>
+                                            </Select.Positioner>
+                                        </Portal>
+                                    </Select.Root>
                                 </Field.Root>
                                 <Field.Root>
                                     <Field.Label>输出路径（可选）</Field.Label>

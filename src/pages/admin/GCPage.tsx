@@ -10,8 +10,9 @@ import {
 } from "@chakra-ui/react"
 import type { GCResult } from "@/types"
 import * as api from "@/lib/api"
-import { toaster } from "@/components/ui/toaster"
+import { toaster } from "@/components/ui/toaster-instance"
 import { LuEye, LuTrash2 } from "react-icons/lu"
+import ConfirmDialog from "@/components/ConfirmDialog"
 
 function formatBytes(bytes: number) {
     if (bytes === 0) return "0 B"
@@ -24,6 +25,7 @@ function formatBytes(bytes: number) {
 export default function GCPage() {
     const [result, setResult] = useState<GCResult | null>(null)
     const [loading, setLoading] = useState(false)
+    const [confirmOpen, setConfirmOpen] = useState(false)
 
     const handlePreview = async () => {
         setLoading(true)
@@ -38,7 +40,7 @@ export default function GCPage() {
     }
 
     const handleRun = async () => {
-        if (!window.confirm("确定要执行垃圾回收吗？此操作不可逆！")) return
+        setConfirmOpen(false)
         setLoading(true)
         try {
             const res = await api.gcRun()
@@ -62,7 +64,7 @@ export default function GCPage() {
                 <Button onClick={handlePreview} loading={loading} variant="outline">
                     <LuEye /> 预览
                 </Button>
-                <Button onClick={handleRun} loading={loading} colorPalette="red">
+                <Button onClick={() => setConfirmOpen(true)} loading={loading} colorPalette="red">
                     <LuTrash2 /> 执行回收
                 </Button>
             </HStack>
@@ -96,6 +98,14 @@ export default function GCPage() {
                     </Card.Body>
                 </Card.Root>
             )}
+
+            <ConfirmDialog
+                open={confirmOpen}
+                title="确认执行"
+                description="确定要执行垃圾回收吗？此操作不可逆！"
+                onConfirm={handleRun}
+                onCancel={() => setConfirmOpen(false)}
+            />
         </Stack>
     )
 }

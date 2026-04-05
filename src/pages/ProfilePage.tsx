@@ -9,9 +9,9 @@ import {
     Text,
     Field,
 } from "@chakra-ui/react"
-import { useAuth } from "@/contexts/AuthContext"
+import { useAuth } from "@/contexts/useAuth"
 import * as api from "@/lib/api"
-import { toaster } from "@/components/ui/toaster"
+import { toaster } from "@/components/ui/toaster-instance"
 
 export default function ProfilePage() {
     const { user } = useAuth()

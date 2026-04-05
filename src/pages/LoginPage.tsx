@@ -11,7 +11,7 @@ import {
     Fieldset,
     Field,
 } from "@chakra-ui/react"
-import { useAuth } from "@/contexts/AuthContext"
+import { useAuth } from "@/contexts/useAuth"
 
 export default function LoginPage() {
     const { login } = useAuth()
@@ -49,7 +49,7 @@ export default function LoginPage() {
             >
                 <Stack gap="5">
                     <Heading size="lg" textAlign="center">
-                        题库管理系统
+                        CPHOS 题库
                     </Heading>
 
                     <Fieldset.Root>

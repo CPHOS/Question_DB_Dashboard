@@ -9,14 +9,24 @@ import {
     Badge,
     IconButton,
     Stack,
-    NativeSelect,
+    Select,
+    Portal,
+    createListCollection,
 } from "@chakra-ui/react"
 import type { AdminPapersQuery, AdminPaperSummary, Paginated } from "@/types"
 import * as api from "@/lib/api"
-import { toaster } from "@/components/ui/toaster"
+import { toaster } from "@/components/ui/toaster-instance"
 import { LuSearch, LuChevronLeft, LuChevronRight, LuRotateCcw } from "react-icons/lu"
 
 const LIMIT = 20
+
+const stateOptions = createListCollection({
+    items: [
+        { label: "全部", value: "all" },
+        { label: "活跃", value: "active" },
+        { label: "已删除", value: "deleted" },
+    ],
+})
 
 export default function AdminPapersPage() {
     const [data, setData] = useState<Paginated<AdminPaperSummary> | null>(null)
@@ -68,22 +78,41 @@ export default function AdminPapersPage() {
                 <IconButton aria-label="search" size="sm" onClick={handleSearch}>
                     <LuSearch />
                 </IconButton>
-                <NativeSelect.Root size="sm" width="120px">
-                    <NativeSelect.Field
-                        value={query.state ?? "deleted"}
-                        onChange={(e) =>
-                            setQuery((prev) => ({
-                                ...prev,
-                                state: e.target.value as "active" | "deleted" | "all",
-                                offset: 0,
-                            }))
-                        }
-                    >
-                        <option value="all">全部</option>
-                        <option value="active">活跃</option>
-                        <option value="deleted">已删除</option>
-                    </NativeSelect.Field>
-                </NativeSelect.Root>
+                <Select.Root
+                    collection={stateOptions}
+                    size="sm"
+                    width="130px"
+                    value={[query.state ?? "deleted"]}
+                    onValueChange={(e) =>
+                        setQuery((prev) => ({
+                            ...prev,
+                            state: e.value[0] as "active" | "deleted" | "all",
+                            offset: 0,
+                        }))
+                    }
+                >
+                    <Select.HiddenSelect />
+                    <Select.Control>
+                        <Select.Trigger>
+                            <Select.ValueText />
+                        </Select.Trigger>
+                        <Select.IndicatorGroup>
+                            <Select.Indicator />
+                        </Select.IndicatorGroup>
+                    </Select.Control>
+                    <Portal>
+                        <Select.Positioner>
+                            <Select.Content>
+                                {stateOptions.items.map((item) => (
+                                    <Select.Item item={item} key={item.value}>
+                                        {item.label}
+                                        <Select.ItemIndicator />
+                                    </Select.Item>
+                                ))}
+                            </Select.Content>
+                        </Select.Positioner>
+                    </Portal>
+                </Select.Root>
             </HStack>
 
             <Box overflowX="auto">

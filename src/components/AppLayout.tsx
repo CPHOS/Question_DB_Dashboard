@@ -9,13 +9,12 @@ import {
     Separator,
 } from "@chakra-ui/react"
 import { Link, Outlet, useLocation, useNavigate } from "react-router-dom"
-import { useAuth } from "@/contexts/AuthContext"
+import { useAuth } from "@/contexts/useAuth"
 import { ColorModeButton } from "@/components/ui/color-mode"
 import {
     LuFileText,
     LuBookOpen,
     LuShield,
-    LuSettings,
     LuLogOut,
     LuMenu,
 } from "react-icons/lu"
@@ -24,7 +23,6 @@ import { useState } from "react"
 const NAV = [
     { to: "/questions", label: "题目管理", icon: <LuFileText />, roles: ["viewer", "editor", "admin"] },
     { to: "/papers", label: "试卷管理", icon: <LuBookOpen />, roles: ["viewer", "editor", "admin"] },
-    { to: "/ops", label: "运维操作", icon: <LuSettings />, roles: ["editor", "admin"] },
     { to: "/admin", label: "管理后台", icon: <LuShield />, roles: ["admin"] },
 ] as const
 

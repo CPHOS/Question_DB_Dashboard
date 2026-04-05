@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { useEffect, useState, useCallback } from "react"
 import { useParams, useNavigate, Link } from "react-router-dom"
 import {
     Box,
@@ -17,9 +17,11 @@ import {
 } from "@chakra-ui/react"
 import type { PaperDetail } from "@/types"
 import * as api from "@/lib/api"
-import { useAuth } from "@/contexts/AuthContext"
-import { toaster } from "@/components/ui/toaster"
+import { useAuth } from "@/contexts/useAuth"
+import { toaster } from "@/components/ui/toaster-instance"
 import { LuArrowLeft, LuPencil, LuTrash2 } from "react-icons/lu"
+import PaperEditDrawer from "./PaperEditPage"
+import ConfirmDialog from "@/components/ConfirmDialog"
 
 export default function PaperDetailPage() {
     const { id } = useParams<{ id: string }>()
@@ -28,21 +30,51 @@ export default function PaperDetailPage() {
     const canEdit = user?.role === "editor" || user?.role === "admin"
 
     const [paper, setPaper] = useState<PaperDetail | null>(null)
-    const [loading, setLoading] = useState(true)
+    const [failedId, setFailedId] = useState<string | null>(null)
+    const [reloadKey, setReloadKey] = useState(0)
+    const [reloading, setReloading] = useState(false)
+    const [editOpen, setEditOpen] = useState(false)
+    const [confirmOpen, setConfirmOpen] = useState(false)
+
+    const currentPaper = paper?.paper_id === id ? paper : null
+    const isLoading = Boolean(id) && failedId !== id && (reloading || !currentPaper)
+
+    const loadPaper = useCallback(() => {
+        setFailedId(null)
+        setReloading(true)
+        setReloadKey((value) => value + 1)
+    }, [])
 
     useEffect(() => {
         if (!id) return
-        setLoading(true)
-        api
+
+        let cancelled = false
+
+        void api
             .getPaper(id)
-            .then(setPaper)
-            .catch((e) => toaster.error({ title: "加载失败", description: String(e) }))
-            .finally(() => setLoading(false))
-    }, [id])
+            .then((data) => {
+                if (cancelled) return
+                setPaper(data)
+                setFailedId(null)
+            })
+            .catch((e) => {
+                if (cancelled) return
+                setFailedId(id)
+                toaster.error({ title: "加载失败", description: String(e) })
+            })
+            .finally(() => {
+                if (cancelled) return
+                setReloading(false)
+            })
+
+        return () => {
+            cancelled = true
+        }
+    }, [id, reloadKey])
 
     const handleDelete = async () => {
         if (!id) return
-        if (!window.confirm("确定要删除此试卷吗？")) return
+        setConfirmOpen(false)
         try {
             await api.deletePaper(id)
             toaster.success({ title: "已删除" })
@@ -52,7 +84,11 @@ export default function PaperDetailPage() {
         }
     }
 
-    if (loading) {
+    if (!id) {
+        return <Text>试卷不存在</Text>
+    }
+
+    if (isLoading) {
         return (
             <Center h="200px">
                 <Spinner size="lg" />
@@ -60,7 +96,7 @@ export default function PaperDetailPage() {
         )
     }
 
-    if (!paper) return <Text>试卷不存在</Text>
+    if (!currentPaper) return <Text>试卷不存在</Text>
 
     return (
         <Stack gap="5">
@@ -69,14 +105,14 @@ export default function PaperDetailPage() {
                     <Button asChild variant="ghost" size="sm">
                         <Link to="/papers"><LuArrowLeft /> 返回</Link>
                     </Button>
-                    <Heading size="lg">{paper.title}</Heading>
+                    <Heading size="lg">{currentPaper.title}</Heading>
                 </HStack>
                 {canEdit && (
                     <HStack>
-                        <Button asChild size="sm" variant="outline">
-                            <Link to={`/papers/${id}/edit`}><LuPencil /> 编辑</Link>
+                        <Button size="sm" variant="outline" onClick={() => setEditOpen(true)}>
+                            <LuPencil /> 编辑
                         </Button>
-                        <Button size="sm" colorPalette="red" variant="outline" onClick={handleDelete}>
+                        <Button size="sm" colorPalette="red" variant="outline" onClick={() => setConfirmOpen(true)}>
                             <LuTrash2 /> 删除
                         </Button>
                     </HStack>
@@ -88,23 +124,23 @@ export default function PaperDetailPage() {
                     <Stack gap="3">
                         <Box>
                             <Text fontSize="xs" color="fg.muted">副标题</Text>
-                            <Text>{paper.subtitle}</Text>
+                            <Text>{currentPaper.subtitle}</Text>
                         </Box>
                         <Box>
                             <Text fontSize="xs" color="fg.muted">描述</Text>
-                            <Text>{paper.description}</Text>
+                            <Text>{currentPaper.description}</Text>
                         </Box>
                         <Separator />
                         <HStack fontSize="xs" color="fg.muted" gap="4">
-                            <Text>创建: {new Date(paper.created_at).toLocaleString()}</Text>
-                            <Text>更新: {new Date(paper.updated_at).toLocaleString()}</Text>
+                            <Text>创建: {new Date(currentPaper.created_at).toLocaleString()}</Text>
+                            <Text>更新: {new Date(currentPaper.updated_at).toLocaleString()}</Text>
                         </HStack>
                     </Stack>
                 </Card.Body>
             </Card.Root>
 
             <Box>
-                <Heading size="md" mb="3">包含题目 ({paper.questions.length})</Heading>
+                <Heading size="md" mb="3">包含题目 ({currentPaper.questions.length})</Heading>
                 <Table.Root size="sm" striped>
                     <Table.Header>
                         <Table.Row>
@@ -116,7 +152,7 @@ export default function PaperDetailPage() {
                         </Table.Row>
                     </Table.Header>
                     <Table.Body>
-                        {paper.questions.map((q, i) => (
+                        {currentPaper.questions.map((q, i) => (
                             <Table.Row key={q.question_id}>
                                 <Table.Cell>{i + 1}</Table.Cell>
                                 <Table.Cell>
@@ -142,6 +178,23 @@ export default function PaperDetailPage() {
                     </Table.Body>
                 </Table.Root>
             </Box>
+
+            {id && (
+                <PaperEditDrawer
+                    paperId={id}
+                    open={editOpen}
+                    onClose={() => setEditOpen(false)}
+                    onSaved={loadPaper}
+                />
+            )}
+
+            <ConfirmDialog
+                open={confirmOpen}
+                title="删除确认"
+                description="确定要删除此试卷吗？"
+                onConfirm={handleDelete}
+                onCancel={() => setConfirmOpen(false)}
+            />
         </Stack>
     )
 }

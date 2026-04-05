@@ -10,16 +10,33 @@ import {
     Stack,
     Input,
     Field,
-    NativeSelect,
-    Dialog,
+    Select,
     Portal,
+    Dialog,
+    createListCollection,
 } from "@chakra-ui/react"
 import type { User, Paginated } from "@/types"
 import * as api from "@/lib/api"
-import { toaster } from "@/components/ui/toaster"
+import { toaster } from "@/components/ui/toaster-instance"
 import { LuPlus, LuChevronLeft, LuChevronRight, LuTrash2, LuPencil } from "react-icons/lu"
+import ConfirmDialog from "@/components/ConfirmDialog"
 
 const LIMIT = 20
+
+const roleOptions = createListCollection({
+    items: [
+        { label: "Viewer", value: "viewer" },
+        { label: "Editor", value: "editor" },
+        { label: "Admin", value: "admin" },
+    ],
+})
+
+const activeOptions = createListCollection({
+    items: [
+        { label: "活跃", value: "true" },
+        { label: "停用", value: "false" },
+    ],
+})
 
 export default function UsersPage() {
     const [data, setData] = useState<Paginated<User> | null>(null)
@@ -40,6 +57,9 @@ export default function UsersPage() {
     const [editRole, setEditRole] = useState<"viewer" | "editor" | "admin">("viewer")
     const [editActive, setEditActive] = useState(true)
     const [saving, setSaving] = useState(false)
+
+    // Deactivate confirm
+    const [deactivateUser, setDeactivateUser] = useState<User | null>(null)
 
     const load = useCallback(async () => {
         setLoading(true)
@@ -110,7 +130,7 @@ export default function UsersPage() {
     }
 
     const handleDeactivate = async (u: User) => {
-        if (!window.confirm(`确定要停用用户 ${u.username} 吗？`)) return
+        setDeactivateUser(null)
         try {
             await api.adminDeleteUser(u.user_id)
             toaster.success({ title: "已停用" })
@@ -181,7 +201,7 @@ export default function UsersPage() {
                                                 size="xs"
                                                 variant="ghost"
                                                 colorPalette="red"
-                                                onClick={() => handleDeactivate(u)}
+                                                onClick={() => setDeactivateUser(u)}
                                             >
                                                 <LuTrash2 />
                                             </IconButton>
@@ -235,16 +255,32 @@ export default function UsersPage() {
                                         </Field.Root>
                                         <Field.Root>
                                             <Field.Label>角色</Field.Label>
-                                            <NativeSelect.Root>
-                                                <NativeSelect.Field
-                                                    value={newRole}
-                                                    onChange={(e) => setNewRole(e.target.value as "viewer" | "editor" | "admin")}
-                                                >
-                                                    <option value="viewer">Viewer</option>
-                                                    <option value="editor">Editor</option>
-                                                    <option value="admin">Admin</option>
-                                                </NativeSelect.Field>
-                                            </NativeSelect.Root>
+                                            <Select.Root
+                                                collection={roleOptions}
+                                                size="sm"
+                                                value={[newRole]}
+                                                onValueChange={(e) => setNewRole(e.value[0] as "viewer" | "editor" | "admin")}
+                                            >
+                                                <Select.HiddenSelect />
+                                                <Select.Control>
+                                                    <Select.Trigger>
+                                                        <Select.ValueText />
+                                                    </Select.Trigger>
+                                                    <Select.IndicatorGroup>
+                                                        <Select.Indicator />
+                                                    </Select.IndicatorGroup>
+                                                </Select.Control>
+                                                <Select.Positioner>
+                                                    <Select.Content>
+                                                        {roleOptions.items.map((item) => (
+                                                            <Select.Item item={item} key={item.value}>
+                                                                {item.label}
+                                                                <Select.ItemIndicator />
+                                                            </Select.Item>
+                                                        ))}
+                                                    </Select.Content>
+                                                </Select.Positioner>
+                                            </Select.Root>
                                         </Field.Root>
                                     </Stack>
                                 </Box>
@@ -280,28 +316,61 @@ export default function UsersPage() {
                                         </Field.Root>
                                         <Field.Root>
                                             <Field.Label>角色</Field.Label>
-                                            <NativeSelect.Root>
-                                                <NativeSelect.Field
-                                                    value={editRole}
-                                                    onChange={(e) => setEditRole(e.target.value as "viewer" | "editor" | "admin")}
-                                                >
-                                                    <option value="viewer">Viewer</option>
-                                                    <option value="editor">Editor</option>
-                                                    <option value="admin">Admin</option>
-                                                </NativeSelect.Field>
-                                            </NativeSelect.Root>
+                                            <Select.Root
+                                                collection={roleOptions}
+                                                size="sm"
+                                                value={[editRole]}
+                                                onValueChange={(e) => setEditRole(e.value[0] as "viewer" | "editor" | "admin")}
+                                            >
+                                                <Select.HiddenSelect />
+                                                <Select.Control>
+                                                    <Select.Trigger>
+                                                        <Select.ValueText />
+                                                    </Select.Trigger>
+                                                    <Select.IndicatorGroup>
+                                                        <Select.Indicator />
+                                                    </Select.IndicatorGroup>
+                                                </Select.Control>
+                                                <Select.Positioner>
+                                                    <Select.Content>
+                                                        {roleOptions.items.map((item) => (
+                                                            <Select.Item item={item} key={item.value}>
+                                                                {item.label}
+                                                                <Select.ItemIndicator />
+                                                            </Select.Item>
+                                                        ))}
+                                                    </Select.Content>
+                                                </Select.Positioner>
+                                            </Select.Root>
                                         </Field.Root>
                                         <Field.Root>
                                             <Field.Label>是否活跃</Field.Label>
-                                            <NativeSelect.Root>
-                                                <NativeSelect.Field
-                                                    value={editActive ? "true" : "false"}
-                                                    onChange={(e) => setEditActive(e.target.value === "true")}
-                                                >
-                                                    <option value="true">活跃</option>
-                                                    <option value="false">停用</option>
-                                                </NativeSelect.Field>
-                                            </NativeSelect.Root>
+                                            <Select.Root
+                                                collection={activeOptions}
+                                                size="sm"
+                                                value={[editActive ? "true" : "false"]}
+                                                onValueChange={(e) => setEditActive(e.value[0] === "true")}
+                                            >
+                                                <Select.HiddenSelect />
+                                                <Select.Control>
+                                                    <Select.Trigger>
+                                                        <Select.ValueText />
+                                                    </Select.Trigger>
+                                                    <Select.IndicatorGroup>
+                                                        <Select.Indicator />
+                                                    </Select.IndicatorGroup>
+                                                </Select.Control>
+                                                <Select.Positioner>
+                                                    <Select.Content>
+                                                        {activeOptions.items.map((item) => (
+                                                            <Select.Item item={item} key={item.value}>
+                                                                {item.label}
+                                                                <Select.ItemIndicator />
+                                                            </Select.Item>
+                                                        ))}
+                                                    </Select.Content>
+                                                </Select.Positioner>
+                                            </Select.Root>
                                         </Field.Root>
                                     </Stack>
                                 </Box>
@@ -318,6 +387,14 @@ export default function UsersPage() {
                     </Dialog.Positioner>
                 </Portal>
             </Dialog.Root>
+
+            <ConfirmDialog
+                open={!!deactivateUser}
+                title="停用确认"
+                description={`确定要停用用户 ${deactivateUser?.username ?? ""} 吗？`}
+                onConfirm={() => deactivateUser && handleDeactivate(deactivateUser)}
+                onCancel={() => setDeactivateUser(null)}
+            />
         </Stack>
     )
 }

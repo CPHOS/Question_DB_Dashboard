@@ -7,13 +7,33 @@ import {
     Input,
     Stack,
     Field,
-    NativeSelect,
     Textarea,
     HStack,
+    Select,
+    Portal,
+    createListCollection,
 } from "@chakra-ui/react"
 import * as api from "@/lib/api"
-import { toaster } from "@/components/ui/toaster"
+import { toaster } from "@/components/ui/toaster-instance"
 import { LuArrowLeft } from "react-icons/lu"
+import FileDropzone from "@/components/FileDropzone"
+import TagInput from "@/components/TagInput"
+
+const categoryOptions = createListCollection({
+    items: [
+        { label: "未分类", value: "none" },
+        { label: "理论 (T)", value: "T" },
+        { label: "实验 (E)", value: "E" },
+    ],
+})
+
+const statusOptions = createListCollection({
+    items: [
+        { label: "无", value: "none" },
+        { label: "已审", value: "reviewed" },
+        { label: "已用", value: "used" },
+    ],
+})
 
 export default function QuestionCreatePage() {
     const navigate = useNavigate()
@@ -22,8 +42,8 @@ export default function QuestionCreatePage() {
     const [category, setCategory] = useState("none")
     const [status, setStatus] = useState("none")
     const [author, setAuthor] = useState("")
-    const [reviewers, setReviewers] = useState("")
-    const [tags, setTags] = useState("")
+    const [reviewers, setReviewers] = useState<string[]>([])
+    const [tags, setTags] = useState<string[]>([])
     const [humanScore, setHumanScore] = useState("5")
     const [humanNotes, setHumanNotes] = useState("")
     const [file, setFile] = useState<File | null>(null)
@@ -56,17 +76,8 @@ export default function QuestionCreatePage() {
             }
             fd.append("difficulty", JSON.stringify(diffObj))
 
-            if (tags.trim()) {
-                fd.append("tags", JSON.stringify(tags.split(",").map((t) => t.trim()).filter(Boolean)))
-            } else {
-                fd.append("tags", "[]")
-            }
-
-            if (reviewers.trim()) {
-                fd.append("reviewers", JSON.stringify(reviewers.split(",").map((r) => r.trim()).filter(Boolean)))
-            } else {
-                fd.append("reviewers", "[]")
-            }
+            fd.append("tags", JSON.stringify(tags))
+            fd.append("reviewers", JSON.stringify(reviewers))
 
             const res = await api.createQuestion(fd)
             toaster.success({ title: "创建成功" })
@@ -91,11 +102,7 @@ export default function QuestionCreatePage() {
                 <Stack gap="4">
                     <Field.Root required>
                         <Field.Label>ZIP 文件</Field.Label>
-                        <Input
-                            type="file"
-                            accept=".zip"
-                            onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-                        />
+                        <FileDropzone onFileChange={setFile} />
                     </Field.Root>
 
                     <Field.Root required>
@@ -110,24 +117,66 @@ export default function QuestionCreatePage() {
                     <HStack gap="4">
                         <Field.Root>
                             <Field.Label>分类</Field.Label>
-                            <NativeSelect.Root>
-                                <NativeSelect.Field value={category} onChange={(e) => setCategory(e.target.value)}>
-                                    <option value="none">未分类</option>
-                                    <option value="T">理论 (T)</option>
-                                    <option value="E">实验 (E)</option>
-                                </NativeSelect.Field>
-                            </NativeSelect.Root>
+                            <Select.Root
+                                collection={categoryOptions}
+                                size="sm"
+                                value={[category]}
+                                onValueChange={(e) => setCategory(e.value[0] || "none")}
+                            >
+                                <Select.HiddenSelect />
+                                <Select.Control>
+                                    <Select.Trigger>
+                                        <Select.ValueText />
+                                    </Select.Trigger>
+                                    <Select.IndicatorGroup>
+                                        <Select.Indicator />
+                                    </Select.IndicatorGroup>
+                                </Select.Control>
+                                <Portal>
+                                    <Select.Positioner>
+                                        <Select.Content>
+                                            {categoryOptions.items.map((item) => (
+                                                <Select.Item item={item} key={item.value}>
+                                                    {item.label}
+                                                    <Select.ItemIndicator />
+                                                </Select.Item>
+                                            ))}
+                                        </Select.Content>
+                                    </Select.Positioner>
+                                </Portal>
+                            </Select.Root>
                         </Field.Root>
 
                         <Field.Root>
                             <Field.Label>状态</Field.Label>
-                            <NativeSelect.Root>
-                                <NativeSelect.Field value={status} onChange={(e) => setStatus(e.target.value)}>
-                                    <option value="none">无</option>
-                                    <option value="reviewed">已审</option>
-                                    <option value="used">已用</option>
-                                </NativeSelect.Field>
-                            </NativeSelect.Root>
+                            <Select.Root
+                                collection={statusOptions}
+                                size="sm"
+                                value={[status]}
+                                onValueChange={(e) => setStatus(e.value[0] || "none")}
+                            >
+                                <Select.HiddenSelect />
+                                <Select.Control>
+                                    <Select.Trigger>
+                                        <Select.ValueText />
+                                    </Select.Trigger>
+                                    <Select.IndicatorGroup>
+                                        <Select.Indicator />
+                                    </Select.IndicatorGroup>
+                                </Select.Control>
+                                <Portal>
+                                    <Select.Positioner>
+                                        <Select.Content>
+                                            {statusOptions.items.map((item) => (
+                                                <Select.Item item={item} key={item.value}>
+                                                    {item.label}
+                                                    <Select.ItemIndicator />
+                                                </Select.Item>
+                                            ))}
+                                        </Select.Content>
+                                    </Select.Positioner>
+                                </Portal>
+                            </Select.Root>
                         </Field.Root>
                     </HStack>
 
@@ -137,13 +186,13 @@ export default function QuestionCreatePage() {
                     </Field.Root>
 
                     <Field.Root>
-                        <Field.Label>审题人（逗号分隔）</Field.Label>
-                        <Input value={reviewers} onChange={(e) => setReviewers(e.target.value)} placeholder="审题人1, 审题人2" />
+                        <Field.Label>审题人</Field.Label>
+                        <TagInput value={reviewers} onChange={setReviewers} placeholder="输入审题人后按回车添加" />
                     </Field.Root>
 
                     <Field.Root>
-                        <Field.Label>标签（逗号分隔）</Field.Label>
-                        <Input value={tags} onChange={(e) => setTags(e.target.value)} placeholder="力学, 热学" />
+                        <Field.Label>标签</Field.Label>
+                        <TagInput value={tags} onChange={setTags} placeholder="输入标签后按回车添加" />
                     </Field.Root>
 
                     <HStack gap="4">

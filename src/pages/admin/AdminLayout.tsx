@@ -6,6 +6,7 @@ const TABS = [
     { to: "/admin/papers", label: "已删除试卷" },
     { to: "/admin/gc", label: "垃圾回收" },
     { to: "/admin/users", label: "用户管理" },
+    { to: "/admin/ops", label: "运维操作" },
 ]
 
 export default function AdminLayout() {

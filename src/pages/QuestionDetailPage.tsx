@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { useEffect, useState, useCallback } from "react"
 import { useParams, useNavigate, Link } from "react-router-dom"
 import {
     Box,
@@ -17,9 +17,11 @@ import {
 } from "@chakra-ui/react"
 import type { QuestionDetail } from "@/types"
 import * as api from "@/lib/api"
-import { useAuth } from "@/contexts/AuthContext"
-import { toaster } from "@/components/ui/toaster"
+import { useAuth } from "@/contexts/useAuth"
+import { toaster } from "@/components/ui/toaster-instance"
 import { LuArrowLeft, LuPencil, LuTrash2 } from "react-icons/lu"
+import QuestionEditDrawer from "./QuestionEditPage"
+import ConfirmDialog from "@/components/ConfirmDialog"
 
 export default function QuestionDetailPage() {
     const { id } = useParams<{ id: string }>()
@@ -28,21 +30,51 @@ export default function QuestionDetailPage() {
     const canEdit = user?.role === "editor" || user?.role === "admin"
 
     const [question, setQuestion] = useState<QuestionDetail | null>(null)
-    const [loading, setLoading] = useState(true)
+    const [failedId, setFailedId] = useState<string | null>(null)
+    const [reloadKey, setReloadKey] = useState(0)
+    const [reloading, setReloading] = useState(false)
+    const [editOpen, setEditOpen] = useState(false)
+    const [confirmOpen, setConfirmOpen] = useState(false)
+
+    const currentQuestion = question?.question_id === id ? question : null
+    const isLoading = Boolean(id) && failedId !== id && (reloading || !currentQuestion)
+
+    const loadQuestion = useCallback(() => {
+        setFailedId(null)
+        setReloading(true)
+        setReloadKey((value) => value + 1)
+    }, [])
 
     useEffect(() => {
         if (!id) return
-        setLoading(true)
-        api
+
+        let cancelled = false
+
+        void api
             .getQuestion(id)
-            .then(setQuestion)
-            .catch((e) => toaster.error({ title: "加载失败", description: String(e) }))
-            .finally(() => setLoading(false))
-    }, [id])
+            .then((data) => {
+                if (cancelled) return
+                setQuestion(data)
+                setFailedId(null)
+            })
+            .catch((e) => {
+                if (cancelled) return
+                setFailedId(id)
+                toaster.error({ title: "加载失败", description: String(e) })
+            })
+            .finally(() => {
+                if (cancelled) return
+                setReloading(false)
+            })
+
+        return () => {
+            cancelled = true
+        }
+    }, [id, reloadKey])
 
     const handleDelete = async () => {
         if (!id) return
-        if (!window.confirm("确定要删除此题目吗？")) return
+        setConfirmOpen(false)
         try {
             await api.deleteQuestion(id)
             toaster.success({ title: "已删除" })
@@ -52,7 +84,11 @@ export default function QuestionDetailPage() {
         }
     }
 
-    if (loading) {
+    if (!id) {
+        return <Text>题目不存在</Text>
+    }
+
+    if (isLoading) {
         return (
             <Center h="200px">
                 <Spinner size="lg" />
@@ -60,11 +96,11 @@ export default function QuestionDetailPage() {
         )
     }
 
-    if (!question) {
+    if (!currentQuestion) {
         return <Text>题目不存在</Text>
     }
 
-    const q = question
+    const q = currentQuestion
 
     return (
         <Stack gap="5">
@@ -77,10 +113,10 @@ export default function QuestionDetailPage() {
                 </HStack>
                 {canEdit && (
                     <HStack>
-                        <Button asChild size="sm" variant="outline">
-                            <Link to={`/questions/${id}/edit`}><LuPencil /> 编辑</Link>
+                        <Button size="sm" variant="outline" onClick={() => setEditOpen(true)}>
+                            <LuPencil /> 编辑
                         </Button>
-                        <Button size="sm" colorPalette="red" variant="outline" onClick={handleDelete}>
+                        <Button size="sm" colorPalette="red" variant="outline" onClick={() => setConfirmOpen(true)}>
                             <LuTrash2 /> 删除
                         </Button>
                     </HStack>
@@ -175,6 +211,23 @@ export default function QuestionDetailPage() {
                     </Stack>
                 </Card.Body>
             </Card.Root>
+
+            {id && (
+                <QuestionEditDrawer
+                    questionId={id}
+                    open={editOpen}
+                    onClose={() => setEditOpen(false)}
+                    onSaved={loadQuestion}
+                />
+            )}
+
+            <ConfirmDialog
+                open={confirmOpen}
+                title="删除确认"
+                description="确定要删除此题目吗？"
+                onConfirm={handleDelete}
+                onCancel={() => setConfirmOpen(false)}
+            />
         </Stack>
     )
 }

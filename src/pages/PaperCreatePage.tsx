@@ -12,11 +12,13 @@ import {
     Text,
     Badge,
     IconButton,
+    Checkbox,
 } from "@chakra-ui/react"
 import type { QuestionSummary, Paginated } from "@/types"
 import * as api from "@/lib/api"
-import { toaster } from "@/components/ui/toaster"
+import { toaster } from "@/components/ui/toaster-instance"
 import { LuArrowLeft, LuSearch, LuChevronLeft, LuChevronRight } from "react-icons/lu"
+import FileDropzone from "@/components/FileDropzone"
 
 export default function PaperCreatePage() {
     const navigate = useNavigate()
@@ -57,7 +59,6 @@ export default function PaperCreatePage() {
 
     const handleSubmit = async (e: FormEvent) => {
         e.preventDefault()
-        if (!file) { toaster.error({ title: "请选择文件" }); return }
         if (!title.trim()) { toaster.error({ title: "请填写标题" }); return }
         if (!subtitle.trim()) { toaster.error({ title: "请填写副标题" }); return }
         if (!description.trim()) { toaster.error({ title: "请填写描述" }); return }
@@ -66,7 +67,7 @@ export default function PaperCreatePage() {
         setLoading(true)
         try {
             const fd = new FormData()
-            fd.append("file", file)
+            if (file) fd.append("file", file)
             fd.append("title", title.trim())
             fd.append("subtitle", subtitle.trim())
             fd.append("description", description.trim())
@@ -95,9 +96,9 @@ export default function PaperCreatePage() {
 
             <Box as="form" onSubmit={handleSubmit}>
                 <Stack gap="4">
-                    <Field.Root required>
-                        <Field.Label>附件 ZIP 文件</Field.Label>
-                        <Input type="file" accept=".zip" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
+                    <Field.Root>
+                        <Field.Label>附件 ZIP 文件（可选）</Field.Label>
+                        <FileDropzone onFileChange={setFile} label="拖放附件到此处（可选）" />
                     </Field.Root>
 
                     <Field.Root required>
@@ -144,11 +145,16 @@ export default function PaperCreatePage() {
                                 {questions?.items.map((q) => (
                                     <Table.Row key={q.question_id}>
                                         <Table.Cell>
-                                            <input
-                                                type="checkbox"
+                                            <Checkbox.Root
+                                                size="sm"
                                                 checked={selectedIds.includes(q.question_id)}
-                                                onChange={() => toggleQuestion(q.question_id)}
-                                            />
+                                                onCheckedChange={() => toggleQuestion(q.question_id)}
+                                            >
+                                                <Checkbox.HiddenInput />
+                                                <Checkbox.Control>
+                                                    <Checkbox.Indicator />
+                                                </Checkbox.Control>
+                                            </Checkbox.Root>
                                         </Table.Cell>
                                         <Table.Cell>{q.description}</Table.Cell>
                                         <Table.Cell>

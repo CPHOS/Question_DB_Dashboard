@@ -9,11 +9,9 @@ import ProfilePage from "@/pages/ProfilePage"
 import QuestionsListPage from "@/pages/QuestionsListPage"
 import QuestionDetailPage from "@/pages/QuestionDetailPage"
 import QuestionCreatePage from "@/pages/QuestionCreatePage"
-import QuestionEditPage from "@/pages/QuestionEditPage"
 import PapersListPage from "@/pages/PapersListPage"
 import PaperDetailPage from "@/pages/PaperDetailPage"
 import PaperCreatePage from "@/pages/PaperCreatePage"
-import PaperEditPage from "@/pages/PaperEditPage"
 import OpsPage from "@/pages/OpsPage"
 
 import AdminLayout from "@/pages/admin/AdminLayout"
@@ -42,9 +40,6 @@ export default function App() {
               <RequireAuth roles={["editor", "admin"]}><QuestionCreatePage /></RequireAuth>
             } />
             <Route path="/questions/:id" element={<QuestionDetailPage />} />
-            <Route path="/questions/:id/edit" element={
-              <RequireAuth roles={["editor", "admin"]}><QuestionEditPage /></RequireAuth>
-            } />
 
             {/* Papers */}
             <Route path="/papers" element={<PapersListPage />} />
@@ -52,14 +47,6 @@ export default function App() {
               <RequireAuth roles={["editor", "admin"]}><PaperCreatePage /></RequireAuth>
             } />
             <Route path="/papers/:id" element={<PaperDetailPage />} />
-            <Route path="/papers/:id/edit" element={
-              <RequireAuth roles={["editor", "admin"]}><PaperEditPage /></RequireAuth>
-            } />
-
-            {/* Ops */}
-            <Route path="/ops" element={
-              <RequireAuth roles={["editor", "admin"]}><OpsPage /></RequireAuth>
-            } />
 
             {/* Admin */}
             <Route path="/admin" element={
@@ -70,6 +57,7 @@ export default function App() {
               <Route path="papers" element={<AdminPapersPage />} />
               <Route path="gc" element={<GCPage />} />
               <Route path="users" element={<UsersPage />} />
+              <Route path="ops" element={<OpsPage />} />
             </Route>
 
             {/* Profile */}

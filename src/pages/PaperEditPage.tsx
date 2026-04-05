@@ -1,24 +1,29 @@
 import { useEffect, useState, type FormEvent } from "react"
-import { useParams, useNavigate, Link } from "react-router-dom"
 import {
     Box,
     Button,
-    Heading,
     Input,
     Stack,
     Field,
-    HStack,
     Spinner,
     Center,
+    Drawer,
+    Portal,
+    CloseButton,
 } from "@chakra-ui/react"
 import type { PaperDetail } from "@/types"
 import * as api from "@/lib/api"
-import { toaster } from "@/components/ui/toaster"
-import { LuArrowLeft } from "react-icons/lu"
+import { toaster } from "@/components/ui/toaster-instance"
+import FileDropzone from "@/components/FileDropzone"
 
-export default function PaperEditPage() {
-    const { id } = useParams<{ id: string }>()
-    const navigate = useNavigate()
+interface Props {
+    paperId: string
+    open: boolean
+    onClose: () => void
+    onSaved: () => void
+}
+
+export default function PaperEditDrawer({ paperId, open, onClose, onSaved }: Props) {
     const [paper, setPaper] = useState<PaperDetail | null>(null)
     const [loading, setLoading] = useState(true)
     const [saving, setSaving] = useState(false)
@@ -29,9 +34,10 @@ export default function PaperEditPage() {
     const [file, setFile] = useState<File | null>(null)
 
     useEffect(() => {
-        if (!id) return
+        if (!open || !paperId) return
+        setLoading(true)
         api
-            .getPaper(id)
+            .getPaper(paperId)
             .then((p) => {
                 setPaper(p)
                 setTitle(p.title)
@@ -40,14 +46,14 @@ export default function PaperEditPage() {
             })
             .catch((e) => toaster.error({ title: "加载失败", description: String(e) }))
             .finally(() => setLoading(false))
-    }, [id])
+    }, [paperId, open])
 
     const handleSubmit = async (e: FormEvent) => {
         e.preventDefault()
-        if (!id) return
+        if (!paperId) return
         setSaving(true)
         try {
-            await api.patchPaper(id, {
+            await api.patchPaper(paperId, {
                 title: title.trim(),
                 subtitle: subtitle.trim(),
                 description: description.trim(),
@@ -56,11 +62,12 @@ export default function PaperEditPage() {
             if (file) {
                 const fd = new FormData()
                 fd.append("file", file)
-                await api.replacePaperFile(id, fd)
+                await api.replacePaperFile(paperId, fd)
             }
 
             toaster.success({ title: "保存成功" })
-            navigate(`/papers/${id}`)
+            onSaved()
+            onClose()
         } catch (err) {
             toaster.error({ title: "保存失败", description: String(err) })
         } finally {
@@ -68,52 +75,65 @@ export default function PaperEditPage() {
         }
     }
 
-    if (loading) {
-        return (
-            <Center h="200px">
-                <Spinner size="lg" />
-            </Center>
-        )
-    }
-
-    if (!paper) return null
-
     return (
-        <Stack gap="5" maxW="600px">
-            <HStack>
-                <Button asChild variant="ghost" size="sm">
-                    <Link to={`/papers/${id}`}><LuArrowLeft /> 返回</Link>
-                </Button>
-                <Heading size="lg">编辑试卷</Heading>
-            </HStack>
+        <Drawer.Root open={open} onOpenChange={(e) => { if (!e.open) onClose() }} size="lg" placement="end">
+            <Portal>
+                <Drawer.Backdrop />
+                <Drawer.Positioner>
+                    <Drawer.Content>
+                        <Drawer.Header>
+                            <Drawer.Title>编辑试卷</Drawer.Title>
+                            <Drawer.CloseTrigger asChild>
+                                <CloseButton size="sm" />
+                            </Drawer.CloseTrigger>
+                        </Drawer.Header>
+                        <Drawer.Body>
+                            {loading ? (
+                                <Center h="200px">
+                                    <Spinner size="lg" />
+                                </Center>
+                            ) : paper ? (
+                                <Box as="form" id="paperEditForm" onSubmit={handleSubmit}>
+                                    <Stack gap="4">
+                                        <Field.Root>
+                                            <Field.Label>替换附件 ZIP（可选）</Field.Label>
+                                            <FileDropzone onFileChange={setFile} label="拖放文件替换（可选）" />
+                                        </Field.Root>
 
-            <Box as="form" onSubmit={handleSubmit}>
-                <Stack gap="4">
-                    <Field.Root>
-                        <Field.Label>替换附件 ZIP（可选）</Field.Label>
-                        <Input type="file" accept=".zip" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
-                    </Field.Root>
+                                        <Field.Root required>
+                                            <Field.Label>标题</Field.Label>
+                                            <Input value={title} onChange={(e) => setTitle(e.target.value)} />
+                                        </Field.Root>
 
-                    <Field.Root required>
-                        <Field.Label>标题</Field.Label>
-                        <Input value={title} onChange={(e) => setTitle(e.target.value)} />
-                    </Field.Root>
+                                        <Field.Root required>
+                                            <Field.Label>副标题</Field.Label>
+                                            <Input value={subtitle} onChange={(e) => setSubtitle(e.target.value)} />
+                                        </Field.Root>
 
-                    <Field.Root required>
-                        <Field.Label>副标题</Field.Label>
-                        <Input value={subtitle} onChange={(e) => setSubtitle(e.target.value)} />
-                    </Field.Root>
-
-                    <Field.Root required>
-                        <Field.Label>描述</Field.Label>
-                        <Input value={description} onChange={(e) => setDescription(e.target.value)} />
-                    </Field.Root>
-
-                    <Button type="submit" colorPalette="blue" loading={saving}>
-                        保存修改
-                    </Button>
-                </Stack>
-            </Box>
-        </Stack>
+                                        <Field.Root required>
+                                            <Field.Label>描述</Field.Label>
+                                            <Input value={description} onChange={(e) => setDescription(e.target.value)} />
+                                        </Field.Root>
+                                    </Stack>
+                                </Box>
+                            ) : null}
+                        </Drawer.Body>
+                        <Drawer.Footer>
+                            <Drawer.ActionTrigger asChild>
+                                <Button variant="outline">取消</Button>
+                            </Drawer.ActionTrigger>
+                            <Button
+                                type="submit"
+                                form="paperEditForm"
+                                colorPalette="blue"
+                                loading={saving}
+                            >
+                                保存修改
+                            </Button>
+                        </Drawer.Footer>
+                    </Drawer.Content>
+                </Drawer.Positioner>
+            </Portal>
+        </Drawer.Root>
     )
 }
