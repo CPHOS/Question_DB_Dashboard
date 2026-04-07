@@ -62,6 +62,12 @@ export interface AdminQuestionSummary extends QuestionSummary {
     is_deleted: boolean
 }
 
+export interface AdminQuestionDetail extends QuestionDetail {
+    deleted_at: string | null
+    deleted_by: string | null
+    is_deleted: boolean
+}
+
 export interface QuestionPatchRequest {
     category?: "none" | "T" | "E"
     description?: string
@@ -92,6 +98,7 @@ export interface PaperSummary {
     description: string
     title: string
     subtitle: string
+    question_count?: number
     created_at: string
     updated_at: string
 }
@@ -101,6 +108,12 @@ export interface PaperDetail extends PaperSummary {
 }
 
 export interface AdminPaperSummary extends PaperSummary {
+    deleted_at: string | null
+    deleted_by: string | null
+    is_deleted: boolean
+}
+
+export interface AdminPaperDetail extends PaperDetail {
     deleted_at: string | null
     deleted_by: string | null
     is_deleted: boolean

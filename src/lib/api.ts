@@ -13,8 +13,10 @@ import type {
     PaperPatchRequest,
     PapersQuery,
     AdminQuestionSummary,
+    AdminQuestionDetail,
     AdminQuestionsQuery,
     AdminPaperSummary,
+    AdminPaperDetail,
     AdminPapersQuery,
     GCResult,
     CreateUserRequest,
@@ -227,7 +229,7 @@ export async function adminGetQuestions(q: AdminQuestionsQuery = {}) {
 }
 
 export async function adminGetQuestion(id: string) {
-    return request(`/admin/questions/${id}`)
+    return request<AdminQuestionDetail>(`/admin/questions/${id}`)
 }
 
 export async function adminRestoreQuestion(id: string) {
@@ -239,7 +241,7 @@ export async function adminGetPapers(q: AdminPapersQuery = {}) {
 }
 
 export async function adminGetPaper(id: string) {
-    return request(`/admin/papers/${id}`)
+    return request<AdminPaperDetail>(`/admin/papers/${id}`)
 }
 
 export async function adminRestorePaper(id: string) {
@@ -280,6 +282,13 @@ export async function adminUpdateUser(id: string, body: UpdateUserRequest) {
 
 export async function adminDeleteUser(id: string) {
     return request<{ message: string }>(`/admin/users/${id}`, { method: "DELETE" })
+}
+
+export async function adminResetPassword(id: string, new_password: string) {
+    return request<{ message: string }>(`/admin/users/${id}/reset-password`, {
+        method: "POST",
+        body: JSON.stringify({ new_password }),
+    })
 }
 
 // ─── Ops ─────────────────────────────────────────────────

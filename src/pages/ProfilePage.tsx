@@ -17,6 +17,7 @@ export default function ProfilePage() {
     const { user } = useAuth()
     const [oldPwd, setOldPwd] = useState("")
     const [newPwd, setNewPwd] = useState("")
+    const [confirmPwd, setConfirmPwd] = useState("")
     const [loading, setLoading] = useState(false)
 
     const handleChangePwd = async (e: FormEvent) => {
@@ -25,12 +26,17 @@ export default function ProfilePage() {
             toaster.error({ title: "新密码至少 6 个字符" })
             return
         }
+        if (newPwd !== confirmPwd) {
+            toaster.error({ title: "两次输入的新密码不一致" })
+            return
+        }
         setLoading(true)
         try {
             await api.changePassword(oldPwd, newPwd)
             toaster.success({ title: "密码已修改" })
             setOldPwd("")
             setNewPwd("")
+            setConfirmPwd("")
         } catch (err) {
             toaster.error({ title: "修改失败", description: String(err) })
         } finally {
@@ -76,6 +82,14 @@ export default function ProfilePage() {
                                     type="password"
                                     value={newPwd}
                                     onChange={(e) => setNewPwd(e.target.value)}
+                                />
+                            </Field.Root>
+                            <Field.Root required>
+                                <Field.Label>确认新密码</Field.Label>
+                                <Input
+                                    type="password"
+                                    value={confirmPwd}
+                                    onChange={(e) => setConfirmPwd(e.target.value)}
                                 />
                             </Field.Root>
                             <Button type="submit" colorPalette="blue" loading={loading} alignSelf="flex-start">

@@ -61,6 +61,7 @@ export default function QuestionsListPage() {
     const [diffTag, setDiffTag] = useState("")
     const [diffMin, setDiffMin] = useState("")
     const [diffMax, setDiffMax] = useState("")
+    const [paperIdFilter, setPaperIdFilter] = useState("")
 
     // Collect unique tags from loaded data for the tag filter
     const [allTags, setAllTags] = useState<string[]>([])
@@ -97,6 +98,7 @@ export default function QuestionsListPage() {
         setQuery((prev) => ({
             ...prev,
             q: search || undefined,
+            paper_id: paperIdFilter.trim() || undefined,
             score_min: scoreMin ? Number(scoreMin) : undefined,
             score_max: scoreMax ? Number(scoreMax) : undefined,
             difficulty_tag: diffTag || undefined,
@@ -278,6 +280,14 @@ export default function QuestionsListPage() {
             {/* Advanced filters */}
             <HStack wrap="wrap" gap="2">
                 <Input
+                    placeholder="试卷 ID"
+                    value={paperIdFilter}
+                    onChange={(e) => setPaperIdFilter(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+                    maxW="280px"
+                    size="sm"
+                />
+                <Input
                     placeholder="最低分数"
                     value={scoreMin}
                     onChange={(e) => setScoreMin(e.target.value)}
@@ -346,18 +356,19 @@ export default function QuestionsListPage() {
                             <Table.ColumnHeader>分数</Table.ColumnHeader>
                             <Table.ColumnHeader>难度</Table.ColumnHeader>
                             <Table.ColumnHeader>命题人</Table.ColumnHeader>
+                            <Table.ColumnHeader>标签</Table.ColumnHeader>
                             <Table.ColumnHeader>创建时间</Table.ColumnHeader>
                         </Table.Row>
                     </Table.Header>
                     <Table.Body>
                         {loading && (
                             <Table.Row>
-                                <Table.Cell colSpan={8}><Text textAlign="center">加载中...</Text></Table.Cell>
+                                <Table.Cell colSpan={9}><Text textAlign="center">加载中...</Text></Table.Cell>
                             </Table.Row>
                         )}
                         {!loading && data?.items.length === 0 && (
                             <Table.Row>
-                                <Table.Cell colSpan={8}><Text textAlign="center" color="fg.muted">暂无数据</Text></Table.Cell>
+                                <Table.Cell colSpan={9}><Text textAlign="center" color="fg.muted">暂无数据</Text></Table.Cell>
                             </Table.Row>
                         )}
                         {data?.items.map((q) => (
@@ -389,7 +400,14 @@ export default function QuestionsListPage() {
                                         ? `${q.difficulty.human.score}/10`
                                         : "—"}
                                 </Table.Cell>
-                                <Table.Cell>{q.author || "—"}</Table.Cell>
+                                <Table.Cell fontSize="xs">{q.author || "—"}</Table.Cell>
+                                <Table.Cell>
+                                    <Flex gap="1" wrap="wrap">
+                                        {q.tags.length > 0 ? q.tags.map((t) => (
+                                            <Badge key={t} size="sm" variant="subtle" colorPalette="teal">{t}</Badge>
+                                        )) : <Text fontSize="xs" color="fg.muted">—</Text>}
+                                    </Flex>
+                                </Table.Cell>
                                 <Table.Cell fontSize="xs" color="fg.muted">
                                     {new Date(q.created_at).toLocaleDateString()}
                                 </Table.Cell>

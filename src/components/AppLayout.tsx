@@ -7,6 +7,7 @@ import {
     IconButton,
     VStack,
     Separator,
+    Circle,
 } from "@chakra-ui/react"
 import { Link, Outlet, useLocation, useNavigate } from "react-router-dom"
 import { useAuth } from "@/contexts/useAuth"
@@ -15,14 +16,17 @@ import {
     LuFileText,
     LuBookOpen,
     LuShield,
+    LuUser,
     LuLogOut,
     LuMenu,
 } from "react-icons/lu"
-import { useState } from "react"
+import { useState, useEffect } from "react"
+import * as api from "@/lib/api"
 
 const NAV = [
     { to: "/questions", label: "题目管理", icon: <LuFileText />, roles: ["viewer", "editor", "admin"] },
     { to: "/papers", label: "试卷管理", icon: <LuBookOpen />, roles: ["viewer", "editor", "admin"] },
+    { to: "/profile", label: "个人信息", icon: <LuUser />, roles: ["viewer", "editor"] },
     { to: "/admin", label: "管理后台", icon: <LuShield />, roles: ["admin"] },
 ] as const
 
@@ -31,6 +35,18 @@ export default function AppLayout() {
     const navigate = useNavigate()
     const location = useLocation()
     const [collapsed, setCollapsed] = useState(false)
+    const [healthOk, setHealthOk] = useState<boolean | null>(null)
+
+    useEffect(() => {
+        const check = () => {
+            api.healthCheck()
+                .then(() => setHealthOk(true))
+                .catch(() => setHealthOk(false))
+        }
+        check()
+        const timer = setInterval(check, 30_000)
+        return () => clearInterval(timer)
+    }, [])
 
     const handleLogout = async () => {
         await logout()
@@ -97,6 +113,18 @@ export default function AppLayout() {
                                 {user.display_name || user.username} ({user.role})
                             </Text>
                         )}
+                        <HStack px="2" gap="2">
+                            <Circle
+                                size="8px"
+                                bg={healthOk === null ? "gray.400" : healthOk ? "green.400" : "red.400"}
+                                title={healthOk === null ? "检查中..." : healthOk ? "服务正常" : "服务异常"}
+                            />
+                            {!collapsed && (
+                                <Text fontSize="xs" color="fg.muted">
+                                    {healthOk === null ? "检查中..." : healthOk ? "服务正常" : "服务异常"}
+                                </Text>
+                            )}
+                        </HStack>
                         <HStack>
                             <ColorModeButton />
                             <IconButton

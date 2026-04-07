@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react"
+import { useEffect, useState, useCallback, useMemo } from "react"
 import {
     Box,
     Button,
@@ -16,9 +16,19 @@ import {
 import type { AdminQuestionsQuery, AdminQuestionSummary, Paginated } from "@/types"
 import * as api from "@/lib/api"
 import { toaster } from "@/components/ui/toaster-instance"
-import { LuSearch, LuChevronLeft, LuChevronRight, LuRotateCcw } from "react-icons/lu"
+import { LuSearch, LuChevronLeft, LuChevronRight, LuRotateCcw, LuEye } from "react-icons/lu"
+import AdminQuestionDetailDrawer from "./AdminQuestionDetailDrawer"
 
-const LIMIT = 20
+const LIMIT_DEFAULT = 20
+
+const PAGE_SIZE_OPTIONS = createListCollection({
+    items: [
+        { label: "10 条/页", value: "10" },
+        { label: "20 条/页", value: "20" },
+        { label: "50 条/页", value: "50" },
+        { label: "100 条/页", value: "100" },
+    ],
+})
 
 const stateOptions = createListCollection({
     items: [
@@ -28,17 +38,53 @@ const stateOptions = createListCollection({
     ],
 })
 
+const categoryOptions = createListCollection({
+    items: [
+        { label: "全部分类", value: "" },
+        { label: "理论 (T)", value: "T" },
+        { label: "实验 (E)", value: "E" },
+        { label: "未分类", value: "none" },
+    ],
+})
+
 export default function AdminQuestionsPage() {
     const [data, setData] = useState<Paginated<AdminQuestionSummary> | null>(null)
-    const [query, setQuery] = useState<AdminQuestionsQuery>({ state: "deleted", limit: LIMIT, offset: 0 })
+    const [query, setQuery] = useState<AdminQuestionsQuery>({ state: "deleted", limit: LIMIT_DEFAULT, offset: 0 })
+    const [pageSize, setPageSize] = useState(LIMIT_DEFAULT)
     const [search, setSearch] = useState("")
     const [loading, setLoading] = useState(false)
+
+    // Advanced filter states
+    const [scoreMin, setScoreMin] = useState("")
+    const [scoreMax, setScoreMax] = useState("")
+    const [diffTag, setDiffTag] = useState("")
+    const [diffMin, setDiffMin] = useState("")
+    const [diffMax, setDiffMax] = useState("")
+
+    // Detail drawer
+    const [detailId, setDetailId] = useState<string | null>(null)
+    const [detailOpen, setDetailOpen] = useState(false)
+
+    // Collect tags
+    const [allTags, setAllTags] = useState<string[]>([])
+    const tagOptions = useMemo(() => createListCollection({
+        items: [
+            { label: "全部标签", value: "" },
+            ...allTags.map((t) => ({ label: t, value: t })),
+        ],
+    }), [allTags])
 
     const load = useCallback(async () => {
         setLoading(true)
         try {
             const res = await api.adminGetQuestions(query)
             setData(res)
+            const tags = new Set<string>()
+            res.items.forEach((q) => q.tags.forEach((t) => tags.add(t)))
+            setAllTags((prev) => {
+                const merged = new Set([...prev, ...tags])
+                return [...merged].sort()
+            })
         } catch (e) {
             toaster.error({ title: "加载失败", description: String(e) })
         } finally {
@@ -49,7 +95,16 @@ export default function AdminQuestionsPage() {
     useEffect(() => { load() }, [load])
 
     const handleSearch = () =>
-        setQuery((prev) => ({ ...prev, q: search || undefined, offset: 0 }))
+        setQuery((prev) => ({
+            ...prev,
+            q: search || undefined,
+            score_min: scoreMin ? Number(scoreMin) : undefined,
+            score_max: scoreMax ? Number(scoreMax) : undefined,
+            difficulty_tag: diffTag || undefined,
+            difficulty_min: diffMin ? Number(diffMin) : undefined,
+            difficulty_max: diffMax ? Number(diffMax) : undefined,
+            offset: 0,
+        }))
 
     const handleRestore = async (id: string) => {
         try {
@@ -61,11 +116,17 @@ export default function AdminQuestionsPage() {
         }
     }
 
-    const page = Math.floor((query.offset ?? 0) / LIMIT)
-    const totalPages = data ? Math.ceil(data.total / LIMIT) : 0
+    const openDetail = (id: string) => {
+        setDetailId(id)
+        setDetailOpen(true)
+    }
+
+    const page = Math.floor((query.offset ?? 0) / pageSize)
+    const totalPages = data ? Math.ceil(data.total / pageSize) : 0
 
     return (
         <Stack gap="3">
+            {/* Filters row 1 */}
             <HStack wrap="wrap" gap="2">
                 <Input
                     placeholder="搜索..."
@@ -113,6 +174,92 @@ export default function AdminQuestionsPage() {
                         </Select.Positioner>
                     </Portal>
                 </Select.Root>
+
+                <Select.Root
+                    collection={categoryOptions}
+                    size="sm"
+                    width="140px"
+                    value={query.category ? [query.category] : [""]}
+                    onValueChange={(e) =>
+                        setQuery((prev) => ({
+                            ...prev,
+                            category: e.value[0] || undefined,
+                            offset: 0,
+                        }))
+                    }
+                >
+                    <Select.HiddenSelect />
+                    <Select.Control>
+                        <Select.Trigger>
+                            <Select.ValueText placeholder="全部分类" />
+                        </Select.Trigger>
+                        <Select.IndicatorGroup>
+                            <Select.Indicator />
+                        </Select.IndicatorGroup>
+                    </Select.Control>
+                    <Portal>
+                        <Select.Positioner>
+                            <Select.Content>
+                                {categoryOptions.items.map((item) => (
+                                    <Select.Item item={item} key={item.value}>
+                                        {item.label}
+                                        <Select.ItemIndicator />
+                                    </Select.Item>
+                                ))}
+                            </Select.Content>
+                        </Select.Positioner>
+                    </Portal>
+                </Select.Root>
+
+                <Select.Root
+                    collection={tagOptions}
+                    size="sm"
+                    width="140px"
+                    value={query.tag ? [query.tag] : [""]}
+                    onValueChange={(e) =>
+                        setQuery((prev) => ({
+                            ...prev,
+                            tag: e.value[0] || undefined,
+                            offset: 0,
+                        }))
+                    }
+                >
+                    <Select.HiddenSelect />
+                    <Select.Control>
+                        <Select.Trigger>
+                            <Select.ValueText placeholder="全部标签" />
+                        </Select.Trigger>
+                        <Select.IndicatorGroup>
+                            <Select.Indicator />
+                        </Select.IndicatorGroup>
+                    </Select.Control>
+                    <Portal>
+                        <Select.Positioner>
+                            <Select.Content>
+                                {tagOptions.items.map((item) => (
+                                    <Select.Item item={item} key={item.value}>
+                                        {item.label}
+                                        <Select.ItemIndicator />
+                                    </Select.Item>
+                                ))}
+                            </Select.Content>
+                        </Select.Positioner>
+                    </Portal>
+                </Select.Root>
+            </HStack>
+
+            {/* Filters row 2: score & difficulty */}
+            <HStack wrap="wrap" gap="2">
+                <Input placeholder="最低分数" value={scoreMin} onChange={(e) => setScoreMin(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && handleSearch()} maxW="100px" size="sm" type="number" />
+                <Input placeholder="最高分数" value={scoreMax} onChange={(e) => setScoreMax(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && handleSearch()} maxW="100px" size="sm" type="number" />
+                <Input placeholder="难度标签" value={diffTag} onChange={(e) => setDiffTag(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && handleSearch()} maxW="120px" size="sm" />
+                <Input placeholder="最低难度" value={diffMin} onChange={(e) => setDiffMin(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && handleSearch()} maxW="100px" size="sm" type="number" />
+                <Input placeholder="最高难度" value={diffMax} onChange={(e) => setDiffMax(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && handleSearch()} maxW="100px" size="sm" type="number" />
             </HStack>
 
             <Box overflowX="auto">
@@ -122,6 +269,7 @@ export default function AdminQuestionsPage() {
                             <Table.ColumnHeader>描述</Table.ColumnHeader>
                             <Table.ColumnHeader>分类</Table.ColumnHeader>
                             <Table.ColumnHeader>状态</Table.ColumnHeader>
+                            <Table.ColumnHeader>分数</Table.ColumnHeader>
                             <Table.ColumnHeader>已删除</Table.ColumnHeader>
                             <Table.ColumnHeader>删除时间</Table.ColumnHeader>
                             <Table.ColumnHeader>操作</Table.ColumnHeader>
@@ -130,23 +278,34 @@ export default function AdminQuestionsPage() {
                     <Table.Body>
                         {loading && (
                             <Table.Row>
-                                <Table.Cell colSpan={6}><Text textAlign="center">加载中...</Text></Table.Cell>
+                                <Table.Cell colSpan={7}><Text textAlign="center">加载中...</Text></Table.Cell>
                             </Table.Row>
                         )}
                         {!loading && data?.items.length === 0 && (
                             <Table.Row>
-                                <Table.Cell colSpan={6}><Text textAlign="center" color="fg.muted">暂无数据</Text></Table.Cell>
+                                <Table.Cell colSpan={7}><Text textAlign="center" color="fg.muted">暂无数据</Text></Table.Cell>
                             </Table.Row>
                         )}
                         {data?.items.map((q) => (
                             <Table.Row key={q.question_id}>
-                                <Table.Cell fontWeight="medium">{q.description}</Table.Cell>
+                                <Table.Cell fontWeight="medium">
+                                    <Text
+                                        as="button"
+                                        color="blue.fg"
+                                        _hover={{ textDecoration: "underline" }}
+                                        onClick={() => openDetail(q.question_id)}
+                                        textAlign="left"
+                                    >
+                                        {q.description}
+                                    </Text>
+                                </Table.Cell>
                                 <Table.Cell>
                                     {q.category === "T" && <Badge colorPalette="blue">T</Badge>}
                                     {q.category === "E" && <Badge colorPalette="green">E</Badge>}
                                     {q.category === "none" && <Badge variant="outline">—</Badge>}
                                 </Table.Cell>
                                 <Table.Cell>{q.status}</Table.Cell>
+                                <Table.Cell>{q.score ?? "—"}</Table.Cell>
                                 <Table.Cell>
                                     {q.is_deleted ? (
                                         <Badge colorPalette="red">已删除</Badge>
@@ -158,11 +317,16 @@ export default function AdminQuestionsPage() {
                                     {q.deleted_at ? new Date(q.deleted_at).toLocaleString() : "—"}
                                 </Table.Cell>
                                 <Table.Cell>
-                                    {q.is_deleted && (
-                                        <Button size="xs" variant="outline" onClick={() => handleRestore(q.question_id)}>
-                                            <LuRotateCcw /> 恢复
-                                        </Button>
-                                    )}
+                                    <HStack gap="1">
+                                        <IconButton aria-label="查看详情" size="xs" variant="ghost" onClick={() => openDetail(q.question_id)}>
+                                            <LuEye />
+                                        </IconButton>
+                                        {q.is_deleted && (
+                                            <Button size="xs" variant="outline" onClick={() => handleRestore(q.question_id)}>
+                                                <LuRotateCcw /> 恢复
+                                            </Button>
+                                        )}
+                                    </HStack>
                                 </Table.Cell>
                             </Table.Row>
                         ))}
@@ -174,16 +338,56 @@ export default function AdminQuestionsPage() {
                 <Text fontSize="sm" color="fg.muted">共 {data?.total ?? 0} 条</Text>
                 <HStack>
                     <IconButton aria-label="prev" size="xs" variant="outline" disabled={page === 0}
-                        onClick={() => setQuery((p) => ({ ...p, offset: (p.offset ?? 0) - LIMIT }))}>
+                        onClick={() => setQuery((p) => ({ ...p, offset: (p.offset ?? 0) - pageSize }))}>
                         <LuChevronLeft />
                     </IconButton>
                     <Text fontSize="sm">{page + 1} / {totalPages || 1}</Text>
                     <IconButton aria-label="next" size="xs" variant="outline" disabled={page + 1 >= totalPages}
-                        onClick={() => setQuery((p) => ({ ...p, offset: (p.offset ?? 0) + LIMIT }))}>
+                        onClick={() => setQuery((p) => ({ ...p, offset: (p.offset ?? 0) + pageSize }))}>
                         <LuChevronRight />
                     </IconButton>
+
+                    <Select.Root
+                        collection={PAGE_SIZE_OPTIONS}
+                        size="xs"
+                        width="120px"
+                        value={[String(pageSize)]}
+                        onValueChange={(e) => {
+                            const v = Number(e.value[0]) || LIMIT_DEFAULT
+                            setPageSize(v)
+                            setQuery((p) => ({ ...p, limit: v, offset: 0 }))
+                        }}
+                    >
+                        <Select.HiddenSelect />
+                        <Select.Control>
+                            <Select.Trigger>
+                                <Select.ValueText />
+                            </Select.Trigger>
+                            <Select.IndicatorGroup>
+                                <Select.Indicator />
+                            </Select.IndicatorGroup>
+                        </Select.Control>
+                        <Portal>
+                            <Select.Positioner>
+                                <Select.Content>
+                                    {PAGE_SIZE_OPTIONS.items.map((item) => (
+                                        <Select.Item item={item} key={item.value}>
+                                            {item.label}
+                                            <Select.ItemIndicator />
+                                        </Select.Item>
+                                    ))}
+                                </Select.Content>
+                            </Select.Positioner>
+                        </Portal>
+                    </Select.Root>
                 </HStack>
             </HStack>
+
+            <AdminQuestionDetailDrawer
+                questionId={detailId}
+                open={detailOpen}
+                onClose={() => setDetailOpen(false)}
+            />
         </Stack>
     )
 }

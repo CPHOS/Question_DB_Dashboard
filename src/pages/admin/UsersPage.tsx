@@ -18,7 +18,7 @@ import {
 import type { User, Paginated } from "@/types"
 import * as api from "@/lib/api"
 import { toaster } from "@/components/ui/toaster-instance"
-import { LuPlus, LuChevronLeft, LuChevronRight, LuTrash2, LuPencil } from "react-icons/lu"
+import { LuPlus, LuChevronLeft, LuChevronRight, LuTrash2, LuPencil, LuKeyRound } from "react-icons/lu"
 import ConfirmDialog from "@/components/ConfirmDialog"
 
 const LIMIT = 20
@@ -57,6 +57,12 @@ export default function UsersPage() {
     const [editRole, setEditRole] = useState<"viewer" | "editor" | "admin">("viewer")
     const [editActive, setEditActive] = useState(true)
     const [saving, setSaving] = useState(false)
+
+    // Reset password dialog
+    const [resetPwdUser, setResetPwdUser] = useState<User | null>(null)
+    const [resetNewPwd, setResetNewPwd] = useState("")
+    const [resetConfirmPwd, setResetConfirmPwd] = useState("")
+    const [resetting, setResetting] = useState(false)
 
     // Deactivate confirm
     const [deactivateUser, setDeactivateUser] = useState<User | null>(null)
@@ -140,6 +146,31 @@ export default function UsersPage() {
         }
     }
 
+    const handleResetPassword = async (e: FormEvent) => {
+        e.preventDefault()
+        if (!resetPwdUser) return
+        if (resetNewPwd.length < 6) {
+            toaster.error({ title: "密码至少 6 个字符" })
+            return
+        }
+        if (resetNewPwd !== resetConfirmPwd) {
+            toaster.error({ title: "两次输入的密码不一致" })
+            return
+        }
+        setResetting(true)
+        try {
+            await api.adminResetPassword(resetPwdUser.user_id, resetNewPwd)
+            toaster.success({ title: "密码已重置" })
+            setResetPwdUser(null)
+            setResetNewPwd("")
+            setResetConfirmPwd("")
+        } catch (err) {
+            toaster.error({ title: "重置失败", description: String(err) })
+        } finally {
+            setResetting(false)
+        }
+    }
+
     const roleColor = (r: string) => {
         if (r === "admin") return "red"
         if (r === "editor") return "blue"
@@ -194,6 +225,9 @@ export default function UsersPage() {
                                     <HStack gap="1">
                                         <IconButton aria-label="edit" size="xs" variant="ghost" onClick={() => openEdit(u)}>
                                             <LuPencil />
+                                        </IconButton>
+                                        <IconButton aria-label="reset-password" size="xs" variant="ghost" colorPalette="orange" onClick={() => { setResetPwdUser(u); setResetNewPwd(""); setResetConfirmPwd("") }}>
+                                            <LuKeyRound />
                                         </IconButton>
                                         {u.is_active && (
                                             <IconButton
@@ -381,6 +415,42 @@ export default function UsersPage() {
                                 </Dialog.ActionTrigger>
                                 <Button type="submit" form="editUserForm" colorPalette="blue" loading={saving}>
                                     保存
+                                </Button>
+                            </Dialog.Footer>
+                        </Dialog.Content>
+                    </Dialog.Positioner>
+                </Portal>
+            </Dialog.Root>
+
+            {/* Reset Password Dialog */}
+            <Dialog.Root open={!!resetPwdUser} onOpenChange={(e) => { if (!e.open) setResetPwdUser(null) }}>
+                <Portal>
+                    <Dialog.Backdrop />
+                    <Dialog.Positioner>
+                        <Dialog.Content>
+                            <Dialog.Header>
+                                <Dialog.Title>重置密码 — {resetPwdUser?.username}</Dialog.Title>
+                            </Dialog.Header>
+                            <Dialog.Body>
+                                <Box as="form" id="resetPwdForm" onSubmit={handleResetPassword}>
+                                    <Stack gap="3">
+                                        <Field.Root required>
+                                            <Field.Label>新密码（至少 6 位）</Field.Label>
+                                            <Input type="password" value={resetNewPwd} onChange={(e) => setResetNewPwd(e.target.value)} />
+                                        </Field.Root>
+                                        <Field.Root required>
+                                            <Field.Label>确认新密码</Field.Label>
+                                            <Input type="password" value={resetConfirmPwd} onChange={(e) => setResetConfirmPwd(e.target.value)} />
+                                        </Field.Root>
+                                    </Stack>
+                                </Box>
+                            </Dialog.Body>
+                            <Dialog.Footer>
+                                <Dialog.ActionTrigger asChild>
+                                    <Button variant="outline">取消</Button>
+                                </Dialog.ActionTrigger>
+                                <Button type="submit" form="resetPwdForm" colorPalette="orange" loading={resetting}>
+                                    重置密码
                                 </Button>
                             </Dialog.Footer>
                         </Dialog.Content>

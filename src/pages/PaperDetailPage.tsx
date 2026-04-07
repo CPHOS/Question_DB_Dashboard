@@ -141,42 +141,60 @@ export default function PaperDetailPage() {
 
             <Box>
                 <Heading size="md" mb="3">包含题目 ({currentPaper.questions.length})</Heading>
-                <Table.Root size="sm" striped>
-                    <Table.Header>
-                        <Table.Row>
-                            <Table.ColumnHeader>#</Table.ColumnHeader>
-                            <Table.ColumnHeader>描述</Table.ColumnHeader>
-                            <Table.ColumnHeader>分类</Table.ColumnHeader>
-                            <Table.ColumnHeader>分数</Table.ColumnHeader>
-                            <Table.ColumnHeader>状态</Table.ColumnHeader>
-                        </Table.Row>
-                    </Table.Header>
-                    <Table.Body>
-                        {currentPaper.questions.map((q, i) => (
-                            <Table.Row key={q.question_id}>
-                                <Table.Cell>{i + 1}</Table.Cell>
-                                <Table.Cell>
-                                    <Link to={`/questions/${q.question_id}`}>
-                                        <Text _hover={{ textDecoration: "underline" }} color="blue.fg">
-                                            {q.description}
-                                        </Text>
-                                    </Link>
-                                </Table.Cell>
-                                <Table.Cell>
-                                    {q.category === "T" && <Badge colorPalette="blue">T</Badge>}
-                                    {q.category === "E" && <Badge colorPalette="green">E</Badge>}
-                                    {q.category === "none" && <Badge variant="outline">—</Badge>}
-                                </Table.Cell>
-                                <Table.Cell>{q.score ?? "—"}</Table.Cell>
-                                <Table.Cell>
-                                    {q.status === "reviewed" && <Badge colorPalette="purple">已审</Badge>}
-                                    {q.status === "used" && <Badge colorPalette="orange">已用</Badge>}
-                                    {q.status === "none" && <Badge variant="outline">无</Badge>}
-                                </Table.Cell>
+                <Box overflowX="auto">
+                    <Table.Root size="sm" striped>
+                        <Table.Header>
+                            <Table.Row>
+                                <Table.ColumnHeader>#</Table.ColumnHeader>
+                                <Table.ColumnHeader>描述</Table.ColumnHeader>
+                                <Table.ColumnHeader>分类</Table.ColumnHeader>
+                                <Table.ColumnHeader>状态</Table.ColumnHeader>
+                                <Table.ColumnHeader>分数</Table.ColumnHeader>
+                                <Table.ColumnHeader>难度</Table.ColumnHeader>
+                                <Table.ColumnHeader>标签</Table.ColumnHeader>
+                                <Table.ColumnHeader>命题人</Table.ColumnHeader>
                             </Table.Row>
-                        ))}
-                    </Table.Body>
-                </Table.Root>
+                        </Table.Header>
+                        <Table.Body>
+                            {currentPaper.questions.map((q, i) => (
+                                <Table.Row key={q.question_id}>
+                                    <Table.Cell>{i + 1}</Table.Cell>
+                                    <Table.Cell>
+                                        <Link to={`/questions/${q.question_id}`}>
+                                            <Text _hover={{ textDecoration: "underline" }} color="blue.fg" fontWeight="medium">
+                                                {q.description}
+                                            </Text>
+                                        </Link>
+                                    </Table.Cell>
+                                    <Table.Cell>
+                                        {q.category === "T" && <Badge colorPalette="blue">T</Badge>}
+                                        {q.category === "E" && <Badge colorPalette="green">E</Badge>}
+                                        {q.category === "none" && <Badge variant="outline">—</Badge>}
+                                    </Table.Cell>
+                                    <Table.Cell>
+                                        {q.status === "reviewed" && <Badge colorPalette="purple">已审</Badge>}
+                                        {q.status === "used" && <Badge colorPalette="orange">已用</Badge>}
+                                        {q.status === "none" && <Badge variant="outline">无</Badge>}
+                                    </Table.Cell>
+                                    <Table.Cell>{q.score ?? "—"}</Table.Cell>
+                                    <Table.Cell>
+                                        {q.difficulty?.human
+                                            ? `${q.difficulty.human.score}/10`
+                                            : "—"}
+                                    </Table.Cell>
+                                    <Table.Cell>
+                                        <Flex gap="1" wrap="wrap">
+                                            {q.tags?.length ? q.tags.map((t) => (
+                                                <Badge key={t} size="sm" variant="outline">{t}</Badge>
+                                            )) : "—"}
+                                        </Flex>
+                                    </Table.Cell>
+                                    <Table.Cell>{q.author || "—"}</Table.Cell>
+                                </Table.Row>
+                            ))}
+                        </Table.Body>
+                    </Table.Root>
+                </Box>
             </Box>
 
             {id && (
