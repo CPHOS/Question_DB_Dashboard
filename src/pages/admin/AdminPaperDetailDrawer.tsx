@@ -12,12 +12,11 @@ import {
     CloseButton,
     Spinner,
     Center,
-    Table,
 } from "@chakra-ui/react"
-import { Link } from "react-router-dom"
 import type { AdminPaperDetail } from "@/types"
 import * as api from "@/lib/api"
 import { toaster } from "@/components/ui/toaster-instance"
+import QuestionTable from "@/components/QuestionTable"
 
 interface Props {
     paperId: string | null
@@ -86,52 +85,11 @@ export default function AdminPaperDetailDrawer({ paperId, open, onClose }: Props
                                         <Text fontSize="xs" color="fg.muted" mb="2">
                                             包含题目 ({data.questions.length})
                                         </Text>
-                                        <Box overflowX="auto">
-                                            <Table.Root size="sm" striped>
-                                                <Table.Header>
-                                                    <Table.Row>
-                                                        <Table.ColumnHeader>#</Table.ColumnHeader>
-                                                        <Table.ColumnHeader>描述</Table.ColumnHeader>
-                                                        <Table.ColumnHeader>分类</Table.ColumnHeader>
-                                                        <Table.ColumnHeader>状态</Table.ColumnHeader>
-                                                        <Table.ColumnHeader>分数</Table.ColumnHeader>
-                                                        <Table.ColumnHeader>难度</Table.ColumnHeader>
-                                                        <Table.ColumnHeader>命题人</Table.ColumnHeader>
-                                                        <Table.ColumnHeader>审题人</Table.ColumnHeader>
-                                                    </Table.Row>
-                                                </Table.Header>
-                                                <Table.Body>
-                                                    {data.questions.map((q, i) => (
-                                                        <Table.Row key={q.question_id}>
-                                                            <Table.Cell>{i + 1}</Table.Cell>
-                                                            <Table.Cell>
-                                                                <Link to={`/questions/${q.question_id}`}>
-                                                                    <Text _hover={{ textDecoration: "underline" }} color="blue.fg" fontSize="sm">
-                                                                        {q.description}
-                                                                    </Text>
-                                                                </Link>
-                                                            </Table.Cell>
-                                                            <Table.Cell>
-                                                                {q.category === "T" && <Badge colorPalette="blue">T</Badge>}
-                                                                {q.category === "E" && <Badge colorPalette="green">E</Badge>}
-                                                                {q.category === "none" && <Badge variant="outline">—</Badge>}
-                                                            </Table.Cell>
-                                                            <Table.Cell>
-                                                                {q.status === "reviewed" && <Badge colorPalette="purple">已审</Badge>}
-                                                                {q.status === "used" && <Badge colorPalette="orange">已用</Badge>}
-                                                                {q.status === "none" && <Badge variant="outline">无</Badge>}
-                                                            </Table.Cell>
-                                                            <Table.Cell>{q.score ?? "—"}</Table.Cell>
-                                                            <Table.Cell>
-                                                                {q.difficulty?.human ? `${q.difficulty.human.score}/10` : "—"}
-                                                            </Table.Cell>
-                                                            <Table.Cell fontSize="xs">{q.author || "—"}</Table.Cell>
-                                                            <Table.Cell fontSize="xs">{q.reviewers?.length ? q.reviewers.join(", ") : "—"}</Table.Cell>
-                                                        </Table.Row>
-                                                    ))}
-                                                </Table.Body>
-                                            </Table.Root>
-                                        </Box>
+                                        <QuestionTable
+                                            questions={data.questions}
+                                            showIndex
+                                            columns={["description", "category", "status", "score", "difficulty", "author", "reviewers"]}
+                                        />
                                     </Box>
 
                                     <Separator />

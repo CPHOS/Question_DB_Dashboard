@@ -1,10 +1,8 @@
 import { useEffect, useState, useCallback, useMemo } from "react"
 import {
-    Box,
     Button,
     HStack,
     Input,
-    Table,
     Text,
     Badge,
     IconButton,
@@ -16,19 +14,12 @@ import {
 import type { AdminPapersQuery, AdminPaperSummary, Paginated } from "@/types"
 import * as api from "@/lib/api"
 import { toaster } from "@/components/ui/toaster-instance"
-import { LuSearch, LuChevronLeft, LuChevronRight, LuRotateCcw, LuEye } from "react-icons/lu"
+import { LuSearch, LuRotateCcw, LuEye } from "react-icons/lu"
 import AdminPaperDetailDrawer from "./AdminPaperDetailDrawer"
+import PaperTable from "@/components/PaperTable"
+import Pagination from "@/components/Pagination"
 
 const LIMIT_DEFAULT = 20
-
-const PAGE_SIZE_OPTIONS = createListCollection({
-    items: [
-        { label: "10 条/页", value: "10" },
-        { label: "20 条/页", value: "20" },
-        { label: "50 条/页", value: "50" },
-        { label: "100 条/页", value: "100" },
-    ],
-})
 
 const stateOptions = createListCollection({
     items: [
@@ -234,118 +225,66 @@ export default function AdminPapersPage() {
                 </Select.Root>
             </HStack>
 
-            <Box overflowX="auto">
-                <Table.Root size="sm" striped>
-                    <Table.Header>
-                        <Table.Row>
-                            <Table.ColumnHeader>标题</Table.ColumnHeader>
-                            <Table.ColumnHeader>描述</Table.ColumnHeader>
-                            <Table.ColumnHeader>已删除</Table.ColumnHeader>
-                            <Table.ColumnHeader>删除时间</Table.ColumnHeader>
-                            <Table.ColumnHeader>操作</Table.ColumnHeader>
-                        </Table.Row>
-                    </Table.Header>
-                    <Table.Body>
-                        {loading && (
-                            <Table.Row>
-                                <Table.Cell colSpan={5}><Text textAlign="center">加载中...</Text></Table.Cell>
-                            </Table.Row>
-                        )}
-                        {!loading && data?.items.length === 0 && (
-                            <Table.Row>
-                                <Table.Cell colSpan={5}><Text textAlign="center" color="fg.muted">暂无数据</Text></Table.Cell>
-                            </Table.Row>
-                        )}
-                        {data?.items.map((p) => (
-                            <Table.Row key={p.paper_id}>
-                                <Table.Cell fontWeight="medium">
-                                    <Text
-                                        as="button"
-                                        color="blue.fg"
-                                        _hover={{ textDecoration: "underline" }}
-                                        onClick={() => openDetail(p.paper_id)}
-                                        textAlign="left"
-                                    >
-                                        {p.title}
-                                    </Text>
-                                </Table.Cell>
-                                <Table.Cell>{p.description}</Table.Cell>
-                                <Table.Cell>
-                                    {p.is_deleted ? (
-                                        <Badge colorPalette="red">已删除</Badge>
-                                    ) : (
-                                        <Badge colorPalette="green">活跃</Badge>
+            <PaperTable
+                papers={data?.items ?? []}
+                loading={loading}
+                columns={["title", "description"]}
+                titleRender="button"
+                onTitleClick={openDetail}
+                extraColumns={[
+                    {
+                        header: "已删除",
+                        render: (p) => {
+                            const ap = p as AdminPaperSummary
+                            return ap.is_deleted
+                                ? <Badge colorPalette="red">已删除</Badge>
+                                : <Badge colorPalette="green">活跃</Badge>
+                        },
+                    },
+                    {
+                        header: "删除时间",
+                        render: (p) => {
+                            const ap = p as AdminPaperSummary
+                            return (
+                                <Text fontSize="xs" color="fg.muted">
+                                    {ap.deleted_at ? new Date(ap.deleted_at).toLocaleString() : "—"}
+                                </Text>
+                            )
+                        },
+                    },
+                    {
+                        header: "操作",
+                        render: (p) => {
+                            const ap = p as AdminPaperSummary
+                            return (
+                                <HStack gap="1">
+                                    <IconButton aria-label="查看详情" size="xs" variant="ghost" onClick={() => openDetail(p.paper_id)}>
+                                        <LuEye />
+                                    </IconButton>
+                                    {ap.is_deleted && (
+                                        <Button size="xs" variant="outline" onClick={() => handleRestore(p.paper_id)}>
+                                            <LuRotateCcw /> 恢复
+                                        </Button>
                                     )}
-                                </Table.Cell>
-                                <Table.Cell fontSize="xs" color="fg.muted">
-                                    {p.deleted_at ? new Date(p.deleted_at).toLocaleString() : "—"}
-                                </Table.Cell>
-                                <Table.Cell>
-                                    <HStack gap="1">
-                                        <IconButton aria-label="查看详情" size="xs" variant="ghost" onClick={() => openDetail(p.paper_id)}>
-                                            <LuEye />
-                                        </IconButton>
-                                        {p.is_deleted && (
-                                            <Button size="xs" variant="outline" onClick={() => handleRestore(p.paper_id)}>
-                                                <LuRotateCcw /> 恢复
-                                            </Button>
-                                        )}
-                                    </HStack>
-                                </Table.Cell>
-                            </Table.Row>
-                        ))}
-                    </Table.Body>
-                </Table.Root>
-            </Box>
+                                </HStack>
+                            )
+                        },
+                    },
+                ]}
+            />
 
-            <HStack justify="space-between">
-                <Text fontSize="sm" color="fg.muted">共 {data?.total ?? 0} 条</Text>
-                <HStack>
-                    <IconButton aria-label="prev" size="xs" variant="outline" disabled={page === 0}
-                        onClick={() => setQuery((p) => ({ ...p, offset: (p.offset ?? 0) - pageSize }))}>
-                        <LuChevronLeft />
-                    </IconButton>
-                    <Text fontSize="sm">{page + 1} / {totalPages || 1}</Text>
-                    <IconButton aria-label="next" size="xs" variant="outline" disabled={page + 1 >= totalPages}
-                        onClick={() => setQuery((p) => ({ ...p, offset: (p.offset ?? 0) + pageSize }))}>
-                        <LuChevronRight />
-                    </IconButton>
-
-                    <Select.Root
-                        collection={PAGE_SIZE_OPTIONS}
-                        size="xs"
-                        width="120px"
-                        value={[String(pageSize)]}
-                        onValueChange={(e) => {
-                            const v = Number(e.value[0]) || LIMIT_DEFAULT
-                            setPageSize(v)
-                            setQuery((p) => ({ ...p, limit: v, offset: 0 }))
-                        }}
-                    >
-                        <Select.HiddenSelect />
-                        <Select.Control>
-                            <Select.Trigger>
-                                <Select.ValueText />
-                            </Select.Trigger>
-                            <Select.IndicatorGroup>
-                                <Select.Indicator />
-                            </Select.IndicatorGroup>
-                        </Select.Control>
-                        <Portal>
-                            <Select.Positioner>
-                                <Select.Content>
-                                    {PAGE_SIZE_OPTIONS.items.map((item) => (
-                                        <Select.Item item={item} key={item.value}>
-                                            {item.label}
-                                            <Select.ItemIndicator />
-                                        </Select.Item>
-                                    ))}
-                                </Select.Content>
-                            </Select.Positioner>
-                        </Portal>
-                    </Select.Root>
-                </HStack>
-            </HStack>
+            <Pagination
+                page={page}
+                totalPages={totalPages}
+                total={data?.total ?? 0}
+                pageSize={pageSize}
+                onPrev={() => setQuery((p) => ({ ...p, offset: (p.offset ?? 0) - pageSize }))}
+                onNext={() => setQuery((p) => ({ ...p, offset: (p.offset ?? 0) + pageSize }))}
+                onPageSizeChange={(v) => {
+                    setPageSize(v)
+                    setQuery((p) => ({ ...p, limit: v, offset: 0 }))
+                }}
+            />
 
             <AdminPaperDetailDrawer
                 paperId={detailId}

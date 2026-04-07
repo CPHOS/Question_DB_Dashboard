@@ -1,18 +1,13 @@
 import { useEffect, useState, useCallback, useMemo } from "react"
 import { Link } from "react-router-dom"
 import {
-    Box,
     Button,
     Heading,
     HStack,
     Input,
-    Table,
-    Text,
-    Badge,
     IconButton,
     Stack,
     Flex,
-    Checkbox,
     Select,
     Portal,
     createListCollection,
@@ -20,17 +15,10 @@ import {
 import type { QuestionsQuery, QuestionSummary, Paginated } from "@/types"
 import * as api from "@/lib/api"
 import { useAuth } from "@/contexts/useAuth"
-import { LuSearch, LuPlus, LuChevronLeft, LuChevronRight, LuDownload } from "react-icons/lu"
+import { LuSearch, LuPlus, LuDownload } from "react-icons/lu"
 import { toaster } from "@/components/ui/toaster-instance"
-
-const PAGE_SIZE_OPTIONS = createListCollection({
-    items: [
-        { label: "10 条/页", value: "10" },
-        { label: "20 条/页", value: "20" },
-        { label: "50 条/页", value: "50" },
-        { label: "100 条/页", value: "100" },
-    ],
-})
+import QuestionTable from "@/components/QuestionTable"
+import Pagination from "@/components/Pagination"
 
 const LIMIT_DEFAULT = 20
 
@@ -154,18 +142,6 @@ export default function QuestionsListPage() {
             }
             return next
         })
-    }
-
-    const categoryLabel = (c: string) => {
-        if (c === "T") return <Badge colorPalette="blue">理论</Badge>
-        if (c === "E") return <Badge colorPalette="green">实验</Badge>
-        return <Badge variant="outline">未分类</Badge>
-    }
-
-    const statusLabel = (s: string) => {
-        if (s === "reviewed") return <Badge colorPalette="purple">已审</Badge>
-        if (s === "used") return <Badge colorPalette="orange">已用</Badge>
-        return <Badge variant="outline">无</Badge>
     }
 
     return (
@@ -334,154 +310,31 @@ export default function QuestionsListPage() {
             </HStack>
 
             {/* Table */}
-            <Box overflowX="auto">
-                <Table.Root size="sm" striped>
-                    <Table.Header>
-                        <Table.Row>
-                            <Table.ColumnHeader w="40px">
-                                <Checkbox.Root
-                                    size="sm"
-                                    checked={allOnPageSelected ? true : someOnPageSelected ? "indeterminate" : false}
-                                    onCheckedChange={toggleAll}
-                                >
-                                    <Checkbox.HiddenInput />
-                                    <Checkbox.Control>
-                                        <Checkbox.Indicator />
-                                    </Checkbox.Control>
-                                </Checkbox.Root>
-                            </Table.ColumnHeader>
-                            <Table.ColumnHeader>描述</Table.ColumnHeader>
-                            <Table.ColumnHeader>分类</Table.ColumnHeader>
-                            <Table.ColumnHeader>状态</Table.ColumnHeader>
-                            <Table.ColumnHeader>分数</Table.ColumnHeader>
-                            <Table.ColumnHeader>难度</Table.ColumnHeader>
-                            <Table.ColumnHeader>命题人</Table.ColumnHeader>
-                            <Table.ColumnHeader>审题人</Table.ColumnHeader>
-                            <Table.ColumnHeader>标签</Table.ColumnHeader>
-                            <Table.ColumnHeader>创建时间</Table.ColumnHeader>
-                        </Table.Row>
-                    </Table.Header>
-                    <Table.Body>
-                        {loading && (
-                            <Table.Row>
-                                <Table.Cell colSpan={10}><Text textAlign="center">加载中...</Text></Table.Cell>
-                            </Table.Row>
-                        )}
-                        {!loading && data?.items.length === 0 && (
-                            <Table.Row>
-                                <Table.Cell colSpan={10}><Text textAlign="center" color="fg.muted">暂无数据</Text></Table.Cell>
-                            </Table.Row>
-                        )}
-                        {data?.items.map((q) => (
-                            <Table.Row key={q.question_id}>
-                                <Table.Cell>
-                                    <Checkbox.Root
-                                        size="sm"
-                                        checked={selected.has(q.question_id)}
-                                        onCheckedChange={() => toggleSelect(q.question_id)}
-                                    >
-                                        <Checkbox.HiddenInput />
-                                        <Checkbox.Control>
-                                            <Checkbox.Indicator />
-                                        </Checkbox.Control>
-                                    </Checkbox.Root>
-                                </Table.Cell>
-                                <Table.Cell>
-                                    <Link to={`/questions/${q.question_id}`}>
-                                        <Text _hover={{ textDecoration: "underline" }} color="blue.fg" fontWeight="medium">
-                                            {q.description}
-                                        </Text>
-                                    </Link>
-                                </Table.Cell>
-                                <Table.Cell>{categoryLabel(q.category)}</Table.Cell>
-                                <Table.Cell>{statusLabel(q.status)}</Table.Cell>
-                                <Table.Cell>{q.score ?? "—"}</Table.Cell>
-                                <Table.Cell>
-                                    {q.difficulty.human
-                                        ? `${q.difficulty.human.score}/10`
-                                        : "—"}
-                                </Table.Cell>
-                                <Table.Cell fontSize="xs">{q.author || "—"}</Table.Cell>
-                                <Table.Cell fontSize="xs">{q.reviewers.length > 0 ? q.reviewers.join(", ") : "—"}</Table.Cell>
-                                <Table.Cell>
-                                    <Flex gap="1" wrap="wrap">
-                                        {q.tags.length > 0 ? q.tags.map((t) => (
-                                            <Badge key={t} size="sm" variant="subtle" colorPalette="teal">{t}</Badge>
-                                        )) : <Text fontSize="xs" color="fg.muted">—</Text>}
-                                    </Flex>
-                                </Table.Cell>
-                                <Table.Cell fontSize="xs" color="fg.muted">
-                                    {new Date(q.created_at).toLocaleDateString()}
-                                </Table.Cell>
-                            </Table.Row>
-                        ))}
-                    </Table.Body>
-                </Table.Root>
-            </Box>
+            <QuestionTable
+                questions={data?.items ?? []}
+                loading={loading}
+                selectable
+                selected={selected}
+                onToggle={toggleSelect}
+                allSelected={allOnPageSelected}
+                someSelected={someOnPageSelected}
+                onToggleAll={toggleAll}
+                longCategory
+            />
 
             {/* Pagination */}
-            <HStack justify="space-between">
-                <Text fontSize="sm" color="fg.muted">
-                    共 {data?.total ?? 0} 条
-                </Text>
-                <HStack>
-                    <IconButton
-                        aria-label="prev"
-                        size="xs"
-                        variant="outline"
-                        disabled={page === 0}
-                        onClick={() => setQuery((p) => ({ ...p, offset: (p.offset ?? 0) - pageSize }))}
-                    >
-                        <LuChevronLeft />
-                    </IconButton>
-                    <Text fontSize="sm">
-                        {page + 1} / {totalPages || 1}
-                    </Text>
-                    <IconButton
-                        aria-label="next"
-                        size="xs"
-                        variant="outline"
-                        disabled={page + 1 >= totalPages}
-                        onClick={() => setQuery((p) => ({ ...p, offset: (p.offset ?? 0) + pageSize }))}
-                    >
-                        <LuChevronRight />
-                    </IconButton>
-
-                    <Select.Root
-                        collection={PAGE_SIZE_OPTIONS}
-                        size="xs"
-                        width="120px"
-                        value={[String(pageSize)]}
-                        onValueChange={(e) => {
-                            const v = Number(e.value[0]) || LIMIT_DEFAULT
-                            setPageSize(v)
-                            setQuery((p) => ({ ...p, limit: v, offset: 0 }))
-                        }}
-                    >
-                        <Select.HiddenSelect />
-                        <Select.Control>
-                            <Select.Trigger>
-                                <Select.ValueText />
-                            </Select.Trigger>
-                            <Select.IndicatorGroup>
-                                <Select.Indicator />
-                            </Select.IndicatorGroup>
-                        </Select.Control>
-                        <Portal>
-                            <Select.Positioner>
-                                <Select.Content>
-                                    {PAGE_SIZE_OPTIONS.items.map((item) => (
-                                        <Select.Item item={item} key={item.value}>
-                                            {item.label}
-                                            <Select.ItemIndicator />
-                                        </Select.Item>
-                                    ))}
-                                </Select.Content>
-                            </Select.Positioner>
-                        </Portal>
-                    </Select.Root>
-                </HStack>
-            </HStack>
+            <Pagination
+                page={page}
+                totalPages={totalPages}
+                total={data?.total ?? 0}
+                pageSize={pageSize}
+                onPrev={() => setQuery((p) => ({ ...p, offset: (p.offset ?? 0) - pageSize }))}
+                onNext={() => setQuery((p) => ({ ...p, offset: (p.offset ?? 0) + pageSize }))}
+                onPageSizeChange={(v) => {
+                    setPageSize(v)
+                    setQuery((p) => ({ ...p, limit: v, offset: 0 }))
+                }}
+            />
         </Stack>
     )
 }

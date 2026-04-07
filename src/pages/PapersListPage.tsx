@@ -1,17 +1,13 @@
 import { useEffect, useState, useCallback, useMemo } from "react"
 import { Link } from "react-router-dom"
 import {
-    Box,
     Button,
     Heading,
     HStack,
     Input,
-    Table,
-    Text,
     IconButton,
     Stack,
     Flex,
-    Checkbox,
     Select,
     Portal,
     createListCollection,
@@ -19,17 +15,10 @@ import {
 import type { PapersQuery, PaperSummary, Paginated } from "@/types"
 import * as api from "@/lib/api"
 import { useAuth } from "@/contexts/useAuth"
-import { LuSearch, LuPlus, LuChevronLeft, LuChevronRight, LuDownload } from "react-icons/lu"
+import { LuSearch, LuPlus, LuDownload } from "react-icons/lu"
 import { toaster } from "@/components/ui/toaster-instance"
-
-const PAGE_SIZE_OPTIONS = createListCollection({
-    items: [
-        { label: "10 条/页", value: "10" },
-        { label: "20 条/页", value: "20" },
-        { label: "50 条/页", value: "50" },
-        { label: "100 条/页", value: "100" },
-    ],
-})
+import PaperTable from "@/components/PaperTable"
+import Pagination from "@/components/Pagination"
 
 const LIMIT_DEFAULT = 20
 
@@ -245,131 +234,29 @@ export default function PapersListPage() {
                 </Select.Root>
             </HStack>
 
-            <Box overflowX="auto">
-                <Table.Root size="sm" striped>
-                    <Table.Header>
-                        <Table.Row>
-                            <Table.ColumnHeader w="40px">
-                                <Checkbox.Root
-                                    size="sm"
-                                    checked={allOnPageSelected ? true : someOnPageSelected ? "indeterminate" : false}
-                                    onCheckedChange={toggleAll}
-                                >
-                                    <Checkbox.HiddenInput />
-                                    <Checkbox.Control>
-                                        <Checkbox.Indicator />
-                                    </Checkbox.Control>
-                                </Checkbox.Root>
-                            </Table.ColumnHeader>
-                            <Table.ColumnHeader>标题</Table.ColumnHeader>
-                            <Table.ColumnHeader>副标题</Table.ColumnHeader>
-                            <Table.ColumnHeader>描述</Table.ColumnHeader>
-                            <Table.ColumnHeader>创建时间</Table.ColumnHeader>
-                        </Table.Row>
-                    </Table.Header>
-                    <Table.Body>
-                        {loading && (
-                            <Table.Row>
-                                <Table.Cell colSpan={5}><Text textAlign="center">加载中...</Text></Table.Cell>
-                            </Table.Row>
-                        )}
-                        {!loading && data?.items.length === 0 && (
-                            <Table.Row>
-                                <Table.Cell colSpan={5}><Text textAlign="center" color="fg.muted">暂无数据</Text></Table.Cell>
-                            </Table.Row>
-                        )}
-                        {data?.items.map((p) => (
-                            <Table.Row key={p.paper_id}>
-                                <Table.Cell>
-                                    <Checkbox.Root
-                                        size="sm"
-                                        checked={selected.has(p.paper_id)}
-                                        onCheckedChange={() => toggleSelect(p.paper_id)}
-                                    >
-                                        <Checkbox.HiddenInput />
-                                        <Checkbox.Control>
-                                            <Checkbox.Indicator />
-                                        </Checkbox.Control>
-                                    </Checkbox.Root>
-                                </Table.Cell>
-                                <Table.Cell>
-                                    <Link to={`/papers/${p.paper_id}`}>
-                                        <Text _hover={{ textDecoration: "underline" }} color="blue.fg" fontWeight="medium">
-                                            {p.title}
-                                        </Text>
-                                    </Link>
-                                </Table.Cell>
-                                <Table.Cell>{p.subtitle}</Table.Cell>
-                                <Table.Cell>{p.description}</Table.Cell>
-                                <Table.Cell fontSize="xs" color="fg.muted">
-                                    {new Date(p.created_at).toLocaleDateString()}
-                                </Table.Cell>
-                            </Table.Row>
-                        ))}
-                    </Table.Body>
-                </Table.Root>
-            </Box>
+            <PaperTable
+                papers={data?.items ?? []}
+                loading={loading}
+                selectable
+                selected={selected}
+                onToggle={toggleSelect}
+                allSelected={allOnPageSelected}
+                someSelected={someOnPageSelected}
+                onToggleAll={toggleAll}
+            />
 
-            <HStack justify="space-between">
-                <Text fontSize="sm" color="fg.muted">
-                    共 {data?.total ?? 0} 条
-                </Text>
-                <HStack>
-                    <IconButton
-                        aria-label="prev"
-                        size="xs"
-                        variant="outline"
-                        disabled={page === 0}
-                        onClick={() => setQuery((p) => ({ ...p, offset: (p.offset ?? 0) - pageSize }))}
-                    >
-                        <LuChevronLeft />
-                    </IconButton>
-                    <Text fontSize="sm">{page + 1} / {totalPages || 1}</Text>
-                    <IconButton
-                        aria-label="next"
-                        size="xs"
-                        variant="outline"
-                        disabled={page + 1 >= totalPages}
-                        onClick={() => setQuery((p) => ({ ...p, offset: (p.offset ?? 0) + pageSize }))}
-                    >
-                        <LuChevronRight />
-                    </IconButton>
-
-                    <Select.Root
-                        collection={PAGE_SIZE_OPTIONS}
-                        size="xs"
-                        width="120px"
-                        value={[String(pageSize)]}
-                        onValueChange={(e) => {
-                            const v = Number(e.value[0]) || LIMIT_DEFAULT
-                            setPageSize(v)
-                            setQuery((p) => ({ ...p, limit: v, offset: 0 }))
-                        }}
-                    >
-                        <Select.HiddenSelect />
-                        <Select.Control>
-                            <Select.Trigger>
-                                <Select.ValueText />
-                            </Select.Trigger>
-                            <Select.IndicatorGroup>
-                                <Select.Indicator />
-                            </Select.IndicatorGroup>
-                        </Select.Control>
-                        <Portal>
-                            <Select.Positioner>
-                                <Select.Content>
-                                    {PAGE_SIZE_OPTIONS.items.map((item) => (
-                                        <Select.Item item={item} key={item.value}>
-                                            {item.label}
-                                            <Select.ItemIndicator />
-                                        </Select.Item>
-                                    ))}
-                                </Select.Content>
-                            </Select.Positioner>
-                        </Portal>
-                    </Select.Root>
-                </HStack>
-            </HStack>
+            <Pagination
+                page={page}
+                totalPages={totalPages}
+                total={data?.total ?? 0}
+                pageSize={pageSize}
+                onPrev={() => setQuery((p) => ({ ...p, offset: (p.offset ?? 0) - pageSize }))}
+                onNext={() => setQuery((p) => ({ ...p, offset: (p.offset ?? 0) + pageSize }))}
+                onPageSizeChange={(v) => {
+                    setPageSize(v)
+                    setQuery((p) => ({ ...p, limit: v, offset: 0 }))
+                }}
+            />
         </Stack>
     )
 }
