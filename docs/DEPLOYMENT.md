@@ -60,11 +60,16 @@ cp compose.prod.env.example .env
 - `QB_CORS_ORIGINS`（设为前端实际域名，如 `https://dashboard.example.com`）
 - `VITE_API_BASE`（浏览器访问后端 API 的地址，如 `https://api.example.com`）
 
+可选但重要：
+
+- `QB_POSTGRES_MAJOR`：默认为 `16`，需要和 `db` 服务使用的 PostgreSQL major version 保持一致
+
 注意：
 
 - `VITE_API_BASE` 是浏览器端发起请求的地址，不是容器间内网地址
 - 如果前后端部署在同一台服务器上，可以填 `http://your-server-ip:8080`
 - 如果数据库密码里包含 `@`、`:`、`/` 等特殊字符，需要做 URL 编码再写进 `QB_DATABASE_URL`
+- `QB_POSTGRES_MAJOR` 必须和 `docker-compose.prod.yml` 中 `db` 服务实际运行的 PostgreSQL major version 保持一致，否则后端 `GET /database/backup` 使用的 `pg_dump` 可能报 `server version mismatch`
 
 ## 3. 启动生产环境
 
@@ -165,4 +170,32 @@ docker compose --env-file .env -f docker-compose.prod.yml down -v
 - 前端容器是无状态的，可以随时重建
 - 对外提供服务时，建议在前面加 Nginx、Traefik 或云负载均衡，统一处理 HTTPS 和域名
 - 如果使用反向代理统一入口，可以把前端和后端都放在同一域名下，通过路径分流
-- 数据库备份和恢复请参考后端部署文档
+
+### 数据库备份与恢复
+
+**通过 API 操作**（推荐）：
+
+- 备份：以 `admin` 身份调用 `GET /database/backup`，浏览器会下载 plain SQL 文件
+- 恢复：以 `admin` 身份调用 `POST /database/restore`，上传之前下载的 SQL 文件即可覆盖恢复
+
+如果看到 `server version mismatch` 错误，说明 API 镜像里的 PostgreSQL client major version 和数据库不一致，需要调整 `QB_POSTGRES_MAJOR` 后重新构建并部署 API 镜像。
+
+**通过命令行操作**：
+
+备份数据库：
+
+```bash
+docker compose --env-file .env -f docker-compose.prod.yml exec -T db \
+  sh -lc 'pg_dump -U "$POSTGRES_USER" "$POSTGRES_DB"' > qb_backup.sql
+```
+
+恢复数据库（会覆盖当前数据，请谨慎操作）：
+
+```bash
+docker compose --env-file .env -f docker-compose.prod.yml exec -T db \
+  sh -lc 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" \
+    -c "DROP SCHEMA public CASCADE; CREATE SCHEMA public;"'
+
+docker compose --env-file .env -f docker-compose.prod.yml exec -T db \
+  sh -lc 'psql -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$POSTGRES_DB"' < qb_backup.sql
+```

@@ -187,3 +187,9 @@ export interface QualityCheckResult {
     output_path: string
     report: Record<string, unknown>
 }
+
+export interface DatabaseRestoreResult {
+    file_name: string
+    restored_bytes: number
+    status: string
+}

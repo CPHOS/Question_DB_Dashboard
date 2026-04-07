@@ -312,6 +312,19 @@ export async function runQualityCheck(body: QualityCheckRequest) {
     })
 }
 
+// ─── Database ────────────────────────────────────────────
+
+export async function databaseBackup() {
+    return request<Blob>("/database/backup")
+}
+
+export async function databaseRestore(form: FormData) {
+    return request<import("@/types").DatabaseRestoreResult>("/database/restore", {
+        method: "POST",
+        body: form,
+    })
+}
+
 // ─── System ──────────────────────────────────────────────
 
 export async function healthCheck() {
