@@ -7,6 +7,7 @@ RUN corepack enable && pnpm install --frozen-lockfile
 
 COPY . .
 ARG VITE_API_BASE=__QB_API_BASE__
+ARG VITE_BASE_PATH=/__QB_BASE_PATH__/
 RUN pnpm build
 
 FROM nginx:stable-alpine

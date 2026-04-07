@@ -21,8 +21,10 @@ import GCPage from "@/pages/admin/GCPage"
 import UsersPage from "@/pages/admin/UsersPage"
 
 export default function App() {
+  const basename = import.meta.env.BASE_URL.replace(/\/+$/, "")
+
   return (
-    <BrowserRouter>
+    <BrowserRouter basename={basename}>
       <AuthProvider>
         <Routes>
           <Route path="/login" element={<LoginPage />} />
