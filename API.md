@@ -88,7 +88,7 @@
 | `GET /auth/me` | — | ✅ | ✅ | ✅ |
 | `PATCH /auth/me/password` | — | ✅ | ✅ | ✅ |
 | `POST /auth/logout` | — | ✅ | ✅ | ✅ |
-| `GET /questions`、`GET /papers` | — | ✅ | ✅ | ✅ |
+| `GET /questions`、`GET /questions/tags`、`GET /papers` | — | ✅ | ✅ | ✅ |
 | `GET /questions/:id`、`GET /papers/:id` | — | ✅ | ✅ | ✅ |
 | `POST/PATCH/PUT/DELETE` questions | — | — | ✅ | ✅ |
 | `POST/PATCH/PUT/DELETE` papers | — | — | ✅ | ✅ |
@@ -386,6 +386,18 @@
 }
 ```
 
+#### `QuestionTagsResponse`
+
+```json
+{
+  "tags": ["kinematics", "lenses", "mechanics", "optics"]
+}
+```
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `tags` | string[] | 所有未软删除题目的去重标签列表，按字典序升序返回 |
+
 ---
 
 ### `GET /questions`
@@ -412,6 +424,17 @@
 | `offset` | int | `0` | 偏移量 |
 
 **成功响应** `200`：分页包裹，`items` 为 `QuestionSummary[]`。
+
+---
+
+### `GET /questions/tags`
+
+返回所有未软删除题目当前使用中的标签列表，适合前端做自动补全或候选选择。
+
+- **认证**：`viewer` 及以上
+- **说明**：只统计未软删除题目；自动去重；按字典序升序返回
+
+**成功响应** `200`：`QuestionTagsResponse` 对象。
 
 ---
 
@@ -454,6 +477,8 @@
 
 - 逻辑根目录必须恰好一个 `.tex` 文件
 - 可选一个 `assets/` 目录（内含引用的图片等资源）
+- 逻辑根目录的其他杂散文件会被忽略，不参与导入
+- 除根目录 tex / 杂散文件外，其他被导入的非根目录文件都必须位于 `assets/` 下
 - 若最外层是单一包裹目录，会自动剥离一层
 - 拒绝路径穿越（`..`）和绝对路径
 - 总解压体积 ≤ 64 MiB

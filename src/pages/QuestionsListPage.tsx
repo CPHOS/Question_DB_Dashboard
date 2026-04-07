@@ -356,6 +356,7 @@ export default function QuestionsListPage() {
                             <Table.ColumnHeader>分数</Table.ColumnHeader>
                             <Table.ColumnHeader>难度</Table.ColumnHeader>
                             <Table.ColumnHeader>命题人</Table.ColumnHeader>
+                            <Table.ColumnHeader>审题人</Table.ColumnHeader>
                             <Table.ColumnHeader>标签</Table.ColumnHeader>
                             <Table.ColumnHeader>创建时间</Table.ColumnHeader>
                         </Table.Row>
@@ -363,12 +364,12 @@ export default function QuestionsListPage() {
                     <Table.Body>
                         {loading && (
                             <Table.Row>
-                                <Table.Cell colSpan={9}><Text textAlign="center">加载中...</Text></Table.Cell>
+                                <Table.Cell colSpan={10}><Text textAlign="center">加载中...</Text></Table.Cell>
                             </Table.Row>
                         )}
                         {!loading && data?.items.length === 0 && (
                             <Table.Row>
-                                <Table.Cell colSpan={9}><Text textAlign="center" color="fg.muted">暂无数据</Text></Table.Cell>
+                                <Table.Cell colSpan={10}><Text textAlign="center" color="fg.muted">暂无数据</Text></Table.Cell>
                             </Table.Row>
                         )}
                         {data?.items.map((q) => (
@@ -401,6 +402,7 @@ export default function QuestionsListPage() {
                                         : "—"}
                                 </Table.Cell>
                                 <Table.Cell fontSize="xs">{q.author || "—"}</Table.Cell>
+                                <Table.Cell fontSize="xs">{q.reviewers.length > 0 ? q.reviewers.join(", ") : "—"}</Table.Cell>
                                 <Table.Cell>
                                     <Flex gap="1" wrap="wrap">
                                         {q.tags.length > 0 ? q.tags.map((t) => (

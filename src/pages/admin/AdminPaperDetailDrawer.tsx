@@ -96,6 +96,8 @@ export default function AdminPaperDetailDrawer({ paperId, open, onClose }: Props
                                                         <Table.ColumnHeader>状态</Table.ColumnHeader>
                                                         <Table.ColumnHeader>分数</Table.ColumnHeader>
                                                         <Table.ColumnHeader>难度</Table.ColumnHeader>
+                                                        <Table.ColumnHeader>命题人</Table.ColumnHeader>
+                                                        <Table.ColumnHeader>审题人</Table.ColumnHeader>
                                                     </Table.Row>
                                                 </Table.Header>
                                                 <Table.Body>
@@ -123,6 +125,8 @@ export default function AdminPaperDetailDrawer({ paperId, open, onClose }: Props
                                                             <Table.Cell>
                                                                 {q.difficulty?.human ? `${q.difficulty.human.score}/10` : "—"}
                                                             </Table.Cell>
+                                                            <Table.Cell fontSize="xs">{q.author || "—"}</Table.Cell>
+                                                            <Table.Cell fontSize="xs">{q.reviewers?.length ? q.reviewers.join(", ") : "—"}</Table.Cell>
                                                         </Table.Row>
                                                     ))}
                                                 </Table.Body>

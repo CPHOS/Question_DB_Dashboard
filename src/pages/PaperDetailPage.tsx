@@ -153,6 +153,7 @@ export default function PaperDetailPage() {
                                 <Table.ColumnHeader>难度</Table.ColumnHeader>
                                 <Table.ColumnHeader>标签</Table.ColumnHeader>
                                 <Table.ColumnHeader>命题人</Table.ColumnHeader>
+                                <Table.ColumnHeader>审题人</Table.ColumnHeader>
                             </Table.Row>
                         </Table.Header>
                         <Table.Body>
@@ -190,6 +191,7 @@ export default function PaperDetailPage() {
                                         </Flex>
                                     </Table.Cell>
                                     <Table.Cell>{q.author || "—"}</Table.Cell>
+                                    <Table.Cell fontSize="xs">{q.reviewers?.length ? q.reviewers.join(", ") : "—"}</Table.Cell>
                                 </Table.Row>
                             ))}
                         </Table.Body>

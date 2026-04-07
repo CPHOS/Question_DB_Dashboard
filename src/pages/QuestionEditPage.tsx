@@ -58,6 +58,12 @@ export default function QuestionEditDrawer({ questionId, open, onClose, onSaved 
     const [humanScore, setHumanScore] = useState("5")
     const [humanNotes, setHumanNotes] = useState("")
     const [file, setFile] = useState<File | null>(null)
+    const [tagSuggestions, setTagSuggestions] = useState<string[]>([])
+
+    useEffect(() => {
+        if (!open) return
+        api.getQuestionTags().then((r) => setTagSuggestions(r.tags)).catch(() => {})
+    }, [open])
 
     useEffect(() => {
         if (!open || !questionId) return
@@ -223,7 +229,7 @@ export default function QuestionEditDrawer({ questionId, open, onClose, onSaved 
 
                                         <Field.Root>
                                             <Field.Label>标签</Field.Label>
-                                            <TagInput value={tags} onChange={setTags} placeholder="输入标签后按回车添加" />
+                                            <TagInput value={tags} onChange={setTags} placeholder="输入标签后按回车添加" suggestions={tagSuggestions} />
                                         </Field.Root>
 
                                         <HStack gap="4">

@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react"
+import { useState, useEffect, type FormEvent } from "react"
 import { useNavigate, Link } from "react-router-dom"
 import {
     Box,
@@ -47,6 +47,11 @@ export default function QuestionCreatePage() {
     const [humanScore, setHumanScore] = useState("5")
     const [humanNotes, setHumanNotes] = useState("")
     const [file, setFile] = useState<File | null>(null)
+    const [tagSuggestions, setTagSuggestions] = useState<string[]>([])
+
+    useEffect(() => {
+        api.getQuestionTags().then((r) => setTagSuggestions(r.tags)).catch(() => {})
+    }, [])
 
     const handleSubmit = async (e: FormEvent) => {
         e.preventDefault()
@@ -192,7 +197,7 @@ export default function QuestionCreatePage() {
 
                     <Field.Root>
                         <Field.Label>标签</Field.Label>
-                        <TagInput value={tags} onChange={setTags} placeholder="输入标签后按回车添加" />
+                        <TagInput value={tags} onChange={setTags} placeholder="输入标签后按回车添加" suggestions={tagSuggestions} />
                     </Field.Root>
 
                     <HStack gap="4">

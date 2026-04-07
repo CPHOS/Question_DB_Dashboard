@@ -178,11 +178,6 @@ export default function QuestionDetailPage() {
                             </HStack>
                         </Box>
 
-                        <Box>
-                            <Text fontSize="xs" color="fg.muted" mb="1">TeX 源文件</Text>
-                            <Text fontFamily="mono" fontSize="sm">{q.source_tex_path}</Text>
-                        </Box>
-
                         <Separator />
 
                         <Box>

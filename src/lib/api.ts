@@ -73,7 +73,8 @@ async function request<T>(
             res = await fetch(`${BASE}${path}`, { ...init, headers: h2 })
         } else {
             clearTokens()
-            window.location.href = "/login"
+            const base = (import.meta.env.BASE_URL || "/").replace(/\/+$/, "")
+            window.location.href = `${base}/login`
             throw new ApiError(401, "session expired")
         }
     }
@@ -148,6 +149,10 @@ export async function changePassword(old_password: string, new_password: string)
 
 export async function getQuestions(q: QuestionsQuery = {}) {
     return request<Paginated<QuestionSummary>>(`/questions${qs({ ...q })}`)
+}
+
+export async function getQuestionTags() {
+    return request<{ tags: string[] }>("/questions/tags")
 }
 
 export async function getQuestion(id: string) {
