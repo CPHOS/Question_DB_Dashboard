@@ -26,6 +26,8 @@ export interface QuestionTableProps {
     onToggleAll?: () => void
     /** Use long category label (理论/实验/未分类) instead of short (T/E/—) */
     longCategory?: boolean
+    /** Which difficulty tag to display in the difficulty column. Default: "human" */
+    difficultyTag?: string
     /** Columns to show. Default: all standard columns */
     columns?: QuestionColumn[]
     /** How to render the description cell */
@@ -77,6 +79,7 @@ export default function QuestionTable({
     someSelected,
     onToggleAll,
     longCategory = true,
+    difficultyTag = "human",
     columns = ALL_COLUMNS,
     descriptionRender = "link",
     onDescriptionClick,
@@ -128,7 +131,7 @@ export default function QuestionTable({
             case "difficulty":
                 return (
                     <Table.Cell key={col}>
-                        {q.difficulty?.human ? `${q.difficulty.human.score}/10` : "—"}
+                        {q.difficulty?.[difficultyTag] ? `${q.difficulty[difficultyTag].score}/10` : "—"}
                     </Table.Cell>
                 )
             case "author":

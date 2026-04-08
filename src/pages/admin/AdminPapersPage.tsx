@@ -44,6 +44,10 @@ export default function AdminPapersPage() {
     const [pageSize, setPageSize] = useState(LIMIT_DEFAULT)
     const [search, setSearch] = useState("")
     const [loading, setLoading] = useState(false)
+    const [createdAfter, setCreatedAfter] = useState("")
+    const [createdBefore, setCreatedBefore] = useState("")
+    const [updatedAfter, setUpdatedAfter] = useState("")
+    const [updatedBefore, setUpdatedBefore] = useState("")
 
     // Detail drawer
     const [detailId, setDetailId] = useState<string | null>(null)
@@ -72,17 +76,21 @@ export default function AdminPapersPage() {
 
     useEffect(() => { load() }, [load])
 
-    // Load tags from questions
+    // Load tags
     useEffect(() => {
-        api.getQuestions({ limit: 100 }).then((res) => {
-            const tags = new Set<string>()
-            res.items.forEach((q) => q.tags.forEach((t) => tags.add(t)))
-            setAllTags([...tags].sort())
-        }).catch(() => {})
+        api.getQuestionTags().then((r) => setAllTags(r.tags)).catch(() => {})
     }, [])
 
     const handleSearch = () =>
-        setQuery((prev) => ({ ...prev, q: search || undefined, offset: 0 }))
+        setQuery((prev) => ({
+            ...prev,
+            q: search || undefined,
+            created_after: createdAfter || undefined,
+            created_before: createdBefore || undefined,
+            updated_after: updatedAfter || undefined,
+            updated_before: updatedBefore || undefined,
+            offset: 0,
+        }))
 
     const handleRestore = async (id: string) => {
         try {
@@ -223,6 +231,22 @@ export default function AdminPapersPage() {
                         </Select.Positioner>
                     </Portal>
                 </Select.Root>
+            </HStack>
+
+            {/* Date range filters */}
+            <HStack wrap="wrap" gap="2" align="center">
+                <Text fontSize="sm" color="fg.muted" whiteSpace="nowrap">创建时间</Text>
+                <Input value={createdAfter} onChange={(e) => { setCreatedAfter(e.target.value); setQuery((p) => ({ ...p, created_after: e.target.value || undefined, offset: 0 })) }}
+                    maxW="160px" size="sm" type="date" />
+                <Text fontSize="sm" color="fg.muted">~</Text>
+                <Input value={createdBefore} onChange={(e) => { setCreatedBefore(e.target.value); setQuery((p) => ({ ...p, created_before: e.target.value || undefined, offset: 0 })) }}
+                    maxW="160px" size="sm" type="date" />
+                <Text fontSize="sm" color="fg.muted" whiteSpace="nowrap">更新时间</Text>
+                <Input value={updatedAfter} onChange={(e) => { setUpdatedAfter(e.target.value); setQuery((p) => ({ ...p, updated_after: e.target.value || undefined, offset: 0 })) }}
+                    maxW="160px" size="sm" type="date" />
+                <Text fontSize="sm" color="fg.muted">~</Text>
+                <Input value={updatedBefore} onChange={(e) => { setUpdatedBefore(e.target.value); setQuery((p) => ({ ...p, updated_before: e.target.value || undefined, offset: 0 })) }}
+                    maxW="160px" size="sm" type="date" />
             </HStack>
 
             <PaperTable

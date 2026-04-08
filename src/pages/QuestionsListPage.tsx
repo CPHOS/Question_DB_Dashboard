@@ -10,6 +10,7 @@ import {
     Flex,
     Select,
     Portal,
+    Text,
     createListCollection,
 } from "@chakra-ui/react"
 import type { QuestionsQuery, QuestionSummary, Paginated } from "@/types"
@@ -46,13 +47,18 @@ export default function QuestionsListPage() {
     // Additional filter states
     const [scoreMin, setScoreMin] = useState("")
     const [scoreMax, setScoreMax] = useState("")
-    const [diffTag, setDiffTag] = useState("")
+    const [diffTag, setDiffTag] = useState("human")
     const [diffMin, setDiffMin] = useState("")
     const [diffMax, setDiffMax] = useState("")
     const [paperIdFilter, setPaperIdFilter] = useState("")
+    const [createdAfter, setCreatedAfter] = useState("")
+    const [createdBefore, setCreatedBefore] = useState("")
+    const [updatedAfter, setUpdatedAfter] = useState("")
+    const [updatedBefore, setUpdatedBefore] = useState("")
 
     // Collect unique tags from loaded data for the tag filter
     const [allTags, setAllTags] = useState<string[]>([])
+    const [allDiffTags, setAllDiffTags] = useState<string[]>(["human"])
 
     const tagOptions = useMemo(() => createListCollection({
         items: [
@@ -60,6 +66,10 @@ export default function QuestionsListPage() {
             ...allTags.map((t) => ({ label: t, value: t })),
         ],
     }), [allTags])
+
+    const diffTagOptions = useMemo(() => createListCollection({
+        items: allDiffTags.map((t) => ({ label: t, value: t })),
+    }), [allDiffTags])
 
     const load = useCallback(async () => {
         setLoading(true)
@@ -82,6 +92,12 @@ export default function QuestionsListPage() {
 
     useEffect(() => { load() }, [load])
 
+    useEffect(() => {
+        api.getQuestionDifficultyTags().then((r) => {
+            if (r.difficulty_tags.length > 0) setAllDiffTags(r.difficulty_tags)
+        }).catch(() => {})
+    }, [])
+
     const handleSearch = () => {
         setQuery((prev) => ({
             ...prev,
@@ -89,9 +105,13 @@ export default function QuestionsListPage() {
             paper_id: paperIdFilter.trim() || undefined,
             score_min: scoreMin ? Number(scoreMin) : undefined,
             score_max: scoreMax ? Number(scoreMax) : undefined,
-            difficulty_tag: diffTag || undefined,
+            difficulty_tag: (diffMin || diffMax) ? (diffTag || "human") : undefined,
             difficulty_min: diffMin ? Number(diffMin) : undefined,
             difficulty_max: diffMax ? Number(diffMax) : undefined,
+            created_after: createdAfter || undefined,
+            created_before: createdBefore || undefined,
+            updated_after: updatedAfter || undefined,
+            updated_before: updatedBefore || undefined,
             offset: 0,
         }))
     }
@@ -281,14 +301,35 @@ export default function QuestionsListPage() {
                     size="sm"
                     type="number"
                 />
-                <Input
-                    placeholder="难度标签"
-                    value={diffTag}
-                    onChange={(e) => setDiffTag(e.target.value)}
-                    onKeyDown={(e) => e.key === "Enter" && handleSearch()}
-                    maxW="120px"
+                <Select.Root
+                    collection={diffTagOptions}
                     size="sm"
-                />
+                    width="140px"
+                    value={[diffTag]}
+                    onValueChange={(e) => setDiffTag(e.value[0] || "human")}
+                >
+                    <Select.HiddenSelect />
+                    <Select.Control>
+                        <Select.Trigger>
+                            <Select.ValueText placeholder="难度标签" />
+                        </Select.Trigger>
+                        <Select.IndicatorGroup>
+                            <Select.Indicator />
+                        </Select.IndicatorGroup>
+                    </Select.Control>
+                    <Portal>
+                        <Select.Positioner>
+                            <Select.Content>
+                                {diffTagOptions.items.map((item) => (
+                                    <Select.Item item={item} key={item.value}>
+                                        {item.label}
+                                        <Select.ItemIndicator />
+                                    </Select.Item>
+                                ))}
+                            </Select.Content>
+                        </Select.Positioner>
+                    </Portal>
+                </Select.Root>
                 <Input
                     placeholder="最低难度"
                     value={diffMin}
@@ -309,6 +350,42 @@ export default function QuestionsListPage() {
                 />
             </HStack>
 
+            {/* Date range filters */}
+            <HStack wrap="wrap" gap="2" align="center">
+                <Text fontSize="sm" color="fg.muted" whiteSpace="nowrap">创建时间</Text>
+                <Input
+                    value={createdAfter}
+                    onChange={(e) => { setCreatedAfter(e.target.value); setQuery((p) => ({ ...p, created_after: e.target.value || undefined, offset: 0 })) }}
+                    maxW="160px"
+                    size="sm"
+                    type="date"
+                />
+                <Text fontSize="sm" color="fg.muted">~</Text>
+                <Input
+                    value={createdBefore}
+                    onChange={(e) => { setCreatedBefore(e.target.value); setQuery((p) => ({ ...p, created_before: e.target.value || undefined, offset: 0 })) }}
+                    maxW="160px"
+                    size="sm"
+                    type="date"
+                />
+                <Text fontSize="sm" color="fg.muted" whiteSpace="nowrap">更新时间</Text>
+                <Input
+                    value={updatedAfter}
+                    onChange={(e) => { setUpdatedAfter(e.target.value); setQuery((p) => ({ ...p, updated_after: e.target.value || undefined, offset: 0 })) }}
+                    maxW="160px"
+                    size="sm"
+                    type="date"
+                />
+                <Text fontSize="sm" color="fg.muted">~</Text>
+                <Input
+                    value={updatedBefore}
+                    onChange={(e) => { setUpdatedBefore(e.target.value); setQuery((p) => ({ ...p, updated_before: e.target.value || undefined, offset: 0 })) }}
+                    maxW="160px"
+                    size="sm"
+                    type="date"
+                />
+            </HStack>
+
             {/* Table */}
             <QuestionTable
                 questions={data?.items ?? []}
@@ -319,7 +396,7 @@ export default function QuestionsListPage() {
                 allSelected={allOnPageSelected}
                 someSelected={someOnPageSelected}
                 onToggleAll={toggleAll}
-                longCategory
+                difficultyTag={diffTag}
             />
 
             {/* Pagination */}

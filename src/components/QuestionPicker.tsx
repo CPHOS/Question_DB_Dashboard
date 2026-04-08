@@ -55,17 +55,22 @@ export default function QuestionPicker({
     const [qTag, setQTag] = useState("")
     const [qScoreMin, setQScoreMin] = useState("")
     const [qScoreMax, setQScoreMax] = useState("")
-    const [qDiffTag, setQDiffTag] = useState("")
+    const [qDiffTag, setQDiffTag] = useState("human")
     const [qDiffMin, setQDiffMin] = useState("")
     const [qDiffMax, setQDiffMax] = useState("")
 
     const [allTags, setAllTags] = useState<string[]>([])
+    const [allDiffTags, setAllDiffTags] = useState<string[]>(["human"])
     const tagOptions = useMemo(() => createListCollection({
         items: [
             { label: "全部标签", value: "" },
             ...allTags.map((t) => ({ label: t, value: t })),
         ],
     }), [allTags])
+
+    const diffTagOptions = useMemo(() => createListCollection({
+        items: allDiffTags.map((t) => ({ label: t, value: t })),
+    }), [allDiffTags])
 
     const dragItem = useRef<number | null>(null)
     const dragOverItem = useRef<number | null>(null)
@@ -95,6 +100,12 @@ export default function QuestionPicker({
     }, [qSearch, qOffset, qCategory, qTag, qScoreMin, qScoreMax, qDiffTag, qDiffMin, qDiffMax])
 
     useEffect(() => { loadQuestions() }, [loadQuestions])
+
+    useEffect(() => {
+        api.getQuestionDifficultyTags().then((r) => {
+            if (r.difficulty_tags.length > 0) setAllDiffTags(r.difficulty_tags)
+        }).catch(() => {})
+    }, [])
 
     const selectedIds = selectedQuestions.map((q) => q.question_id)
 
@@ -255,9 +266,24 @@ export default function QuestionPicker({
                         <Input placeholder="最高分数" value={qScoreMax} onChange={(e) => setQScoreMax(e.target.value)}
                             onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); setQOffset(0) } }}
                             maxW="90px" size="sm" type="number" />
-                        <Input placeholder="难度标签" value={qDiffTag} onChange={(e) => setQDiffTag(e.target.value)}
-                            onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); setQOffset(0) } }}
-                            maxW="100px" size="sm" />
+                        <Select.Root
+                            collection={diffTagOptions}
+                            size="sm"
+                            width="130px"
+                            value={[qDiffTag]}
+                            onValueChange={(e) => { setQDiffTag(e.value[0] || "human"); setQOffset(0) }}
+                        >
+                            <Select.HiddenSelect />
+                            <Select.Control>
+                                <Select.Trigger><Select.ValueText placeholder="难度标签" /></Select.Trigger>
+                                <Select.IndicatorGroup><Select.Indicator /></Select.IndicatorGroup>
+                            </Select.Control>
+                            <Portal><Select.Positioner><Select.Content>
+                                {diffTagOptions.items.map((item) => (
+                                    <Select.Item item={item} key={item.value}>{item.label}<Select.ItemIndicator /></Select.Item>
+                                ))}
+                            </Select.Content></Select.Positioner></Portal>
+                        </Select.Root>
                         <Input placeholder="最低难度" value={qDiffMin} onChange={(e) => setQDiffMin(e.target.value)}
                             onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); setQOffset(0) } }}
                             maxW="90px" size="sm" type="number" />

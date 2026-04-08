@@ -155,6 +155,10 @@ export async function getQuestionTags() {
     return request<{ tags: string[] }>("/questions/tags")
 }
 
+export async function getQuestionDifficultyTags() {
+    return request<{ difficulty_tags: string[] }>("/questions/difficulty-tags")
+}
+
 export async function getQuestion(id: string) {
     return request<QuestionDetail>(`/questions/${id}`)
 }

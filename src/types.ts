@@ -88,6 +88,10 @@ export interface QuestionsQuery {
     difficulty_min?: number
     difficulty_max?: number
     q?: string
+    created_after?: string
+    created_before?: string
+    updated_after?: string
+    updated_before?: string
     limit?: number
     offset?: number
 }
@@ -131,6 +135,10 @@ export interface PapersQuery {
     category?: string
     tag?: string
     q?: string
+    created_after?: string
+    created_before?: string
+    updated_after?: string
+    updated_before?: string
     limit?: number
     offset?: number
 }
