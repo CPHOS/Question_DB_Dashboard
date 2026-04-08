@@ -13,6 +13,7 @@ import {
     CloseButton,
     Spinner,
     Center,
+    Popover,
 } from "@chakra-ui/react"
 import { Link } from "react-router-dom"
 import type { AdminQuestionDetail } from "@/types"
@@ -112,12 +113,38 @@ export default function AdminQuestionDetailDrawer({ questionId, open, onClose }:
                                     <Box>
                                         <Text fontSize="xs" color="fg.muted" mb="1">难度</Text>
                                         <HStack wrap="wrap" gap="3">
-                                            {Object.entries(data.difficulty).map(([tag, val]) => (
-                                                <Badge key={tag} colorPalette="cyan" variant="subtle">
-                                                    {tag}: {val.score}/10
-                                                    {val.notes ? ` (${val.notes})` : ""}
-                                                </Badge>
-                                            ))}
+                                            {Object.entries(data.difficulty).map(([tag, val]) =>
+                                                val.notes ? (
+                                                    <Popover.Root key={tag} positioning={{ placement: "bottom" }}>
+                                                        <Popover.Trigger asChild>
+                                                            <Badge
+                                                                colorPalette="cyan"
+                                                                variant="subtle"
+                                                                cursor="pointer"
+                                                                _hover={{ opacity: 0.8 }}
+                                                            >
+                                                                {tag}: {val.score}/10 💬
+                                                            </Badge>
+                                                        </Popover.Trigger>
+                                                        <Portal>
+                                                            <Popover.Positioner>
+                                                                <Popover.Content maxW="240px">
+                                                                    <Popover.Arrow>
+                                                                        <Popover.ArrowTip />
+                                                                    </Popover.Arrow>
+                                                                    <Popover.Body fontSize="sm">
+                                                                        {val.notes}
+                                                                    </Popover.Body>
+                                                                </Popover.Content>
+                                                            </Popover.Positioner>
+                                                        </Portal>
+                                                    </Popover.Root>
+                                                ) : (
+                                                    <Badge key={tag} colorPalette="cyan" variant="subtle">
+                                                        {tag}: {val.score}/10
+                                                    </Badge>
+                                                )
+                                            )}
                                         </HStack>
                                     </Box>
 

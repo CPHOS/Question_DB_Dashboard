@@ -7,7 +7,6 @@ import {
     Input,
     Stack,
     Field,
-    Textarea,
     HStack,
     Select,
     Portal,
@@ -18,6 +17,8 @@ import { toaster } from "@/components/ui/toaster-instance"
 import { LuArrowLeft } from "react-icons/lu"
 import FileDropzone from "@/components/FileDropzone"
 import TagInput from "@/components/TagInput"
+import DifficultyEditor from "@/components/DifficultyEditor"
+import type { Difficulty } from "@/types"
 
 const categoryOptions = createListCollection({
     items: [
@@ -44,8 +45,7 @@ export default function QuestionCreatePage() {
     const [author, setAuthor] = useState("")
     const [reviewers, setReviewers] = useState<string[]>([])
     const [tags, setTags] = useState<string[]>([])
-    const [humanScore, setHumanScore] = useState("5")
-    const [humanNotes, setHumanNotes] = useState("")
+    const [difficulty, setDifficulty] = useState<Difficulty>({ human: { score: 5, notes: null } })
     const [file, setFile] = useState<File | null>(null)
     const [tagSuggestions, setTagSuggestions] = useState<string[]>([])
 
@@ -73,13 +73,7 @@ export default function QuestionCreatePage() {
             fd.append("status", status)
             fd.append("author", author.trim())
 
-            const diffObj = {
-                human: {
-                    score: parseInt(humanScore),
-                    notes: humanNotes.trim() || null,
-                },
-            }
-            fd.append("difficulty", JSON.stringify(diffObj))
+            fd.append("difficulty", JSON.stringify(difficulty))
 
             fd.append("tags", JSON.stringify(tags))
             fd.append("reviewers", JSON.stringify(reviewers))
@@ -200,27 +194,10 @@ export default function QuestionCreatePage() {
                         <TagInput value={tags} onChange={setTags} placeholder="输入标签后按回车添加" suggestions={tagSuggestions} />
                     </Field.Root>
 
-                    <HStack gap="4">
-                        <Field.Root required>
-                            <Field.Label>人工难度 (1-10)</Field.Label>
-                            <Input
-                                type="number"
-                                min={1}
-                                max={10}
-                                value={humanScore}
-                                onChange={(e) => setHumanScore(e.target.value)}
-                            />
-                        </Field.Root>
-                        <Field.Root>
-                            <Field.Label>难度备注</Field.Label>
-                            <Textarea
-                                value={humanNotes}
-                                onChange={(e) => setHumanNotes(e.target.value)}
-                                placeholder="可选备注"
-                                rows={1}
-                            />
-                        </Field.Root>
-                    </HStack>
+                    <Field.Root>
+                        <Field.Label>难度评估</Field.Label>
+                        <DifficultyEditor value={difficulty} onChange={setDifficulty} />
+                    </Field.Root>
 
                     <Button type="submit" colorPalette="blue" loading={loading}>
                         创建题目

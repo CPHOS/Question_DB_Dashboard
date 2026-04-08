@@ -20,6 +20,7 @@ import * as api from "@/lib/api"
 import QuestionTable from "./QuestionTable"
 import Pagination from "./Pagination"
 import { LuSearch, LuGripVertical, LuX, LuArrowUp, LuArrowDown } from "react-icons/lu"
+import { CategoryBadgeLabel } from "./CategoryBadge"
 
 const categoryOptions = createListCollection({
     items: [
@@ -165,9 +166,7 @@ export default function QuestionPicker({
                                         </Badge>
                                         <Text fontSize="sm" flex="1" truncate>{q.description}</Text>
                                         {q.category !== "none" && (
-                                            <Badge size="sm" colorPalette={q.category === "T" ? "blue" : "green"}>
-                                                {q.category}
-                                            </Badge>
+                                            <CategoryBadgeLabel value={q.category} />
                                         )}
                                         {q.score != null && (
                                             <Badge size="sm" variant="outline">{q.score}分</Badge>

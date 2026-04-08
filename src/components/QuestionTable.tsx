@@ -76,7 +76,7 @@ export default function QuestionTable({
     allSelected,
     someSelected,
     onToggleAll,
-    longCategory,
+    longCategory = true,
     columns = ALL_COLUMNS,
     descriptionRender = "link",
     onDescriptionClick,

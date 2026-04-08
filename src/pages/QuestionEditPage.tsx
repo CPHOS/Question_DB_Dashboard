@@ -5,7 +5,6 @@ import {
     Input,
     Stack,
     Field,
-    Textarea,
     HStack,
     Spinner,
     Center,
@@ -20,6 +19,8 @@ import * as api from "@/lib/api"
 import { toaster } from "@/components/ui/toaster-instance"
 import FileDropzone from "@/components/FileDropzone"
 import TagInput from "@/components/TagInput"
+import DifficultyEditor from "@/components/DifficultyEditor"
+import type { Difficulty } from "@/types"
 
 const categoryOptions = createListCollection({
     items: [
@@ -55,8 +56,7 @@ export default function QuestionEditDrawer({ questionId, open, onClose, onSaved 
     const [author, setAuthor] = useState("")
     const [reviewers, setReviewers] = useState<string[]>([])
     const [tags, setTags] = useState<string[]>([])
-    const [humanScore, setHumanScore] = useState("5")
-    const [humanNotes, setHumanNotes] = useState("")
+    const [difficulty, setDifficulty] = useState<Difficulty>({ human: { score: 5, notes: null } })
     const [file, setFile] = useState<File | null>(null)
     const [tagSuggestions, setTagSuggestions] = useState<string[]>([])
 
@@ -78,10 +78,9 @@ export default function QuestionEditDrawer({ questionId, open, onClose, onSaved 
                 setAuthor(q.author)
                 setReviewers(q.reviewers)
                 setTags(q.tags)
-                if (q.difficulty.human) {
-                    setHumanScore(String(q.difficulty.human.score))
-                    setHumanNotes(q.difficulty.human.notes ?? "")
-                }
+                setDifficulty(q.difficulty && Object.keys(q.difficulty).length > 0
+                    ? q.difficulty
+                    : { human: { score: 5, notes: null } })
             })
             .catch((e) => toaster.error({ title: "加载失败", description: String(e) }))
             .finally(() => setLoading(false))
@@ -99,12 +98,7 @@ export default function QuestionEditDrawer({ questionId, open, onClose, onSaved 
                 author: author.trim(),
                 reviewers,
                 tags,
-                difficulty: {
-                    human: {
-                        score: parseInt(humanScore),
-                        notes: humanNotes.trim() || null,
-                    },
-                },
+                difficulty,
             })
 
             if (file) {
@@ -232,26 +226,10 @@ export default function QuestionEditDrawer({ questionId, open, onClose, onSaved 
                                             <TagInput value={tags} onChange={setTags} placeholder="输入标签后按回车添加" suggestions={tagSuggestions} />
                                         </Field.Root>
 
-                                        <HStack gap="4">
-                                            <Field.Root required>
-                                                <Field.Label>人工难度 (1-10)</Field.Label>
-                                                <Input
-                                                    type="number"
-                                                    min={1}
-                                                    max={10}
-                                                    value={humanScore}
-                                                    onChange={(e) => setHumanScore(e.target.value)}
-                                                />
-                                            </Field.Root>
-                                            <Field.Root>
-                                                <Field.Label>难度备注</Field.Label>
-                                                <Textarea
-                                                    value={humanNotes}
-                                                    onChange={(e) => setHumanNotes(e.target.value)}
-                                                    rows={1}
-                                                />
-                                            </Field.Root>
-                                        </HStack>
+                                        <Field.Root>
+                                            <Field.Label>难度评估</Field.Label>
+                                            <DifficultyEditor value={difficulty} onChange={setDifficulty} />
+                                        </Field.Root>
                                     </Stack>
                                 </Box>
                             ) : null}
