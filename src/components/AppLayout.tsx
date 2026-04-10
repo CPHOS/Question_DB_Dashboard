@@ -24,9 +24,9 @@ import { useState, useEffect } from "react"
 import * as api from "@/lib/api"
 
 const NAV = [
-    { to: "/questions", label: "题目管理", icon: <LuFileText />, roles: ["viewer", "editor", "admin"] },
-    { to: "/papers", label: "试卷管理", icon: <LuBookOpen />, roles: ["viewer", "editor", "admin"] },
-    { to: "/profile", label: "个人信息", icon: <LuUser />, roles: ["viewer", "editor"] },
+    { to: "/questions", label: "题目管理", icon: <LuFileText />, roles: ["viewer", "user", "leader", "admin"] },
+    { to: "/papers", label: "试卷管理", icon: <LuBookOpen />, roles: ["viewer", "user", "leader", "admin"] },
+    { to: "/profile", label: "个人信息", icon: <LuUser />, roles: ["viewer", "user", "leader"] },
     { to: "/admin", label: "管理后台", icon: <LuShield />, roles: ["admin"] },
 ] as const
 
@@ -111,6 +111,14 @@ export default function AppLayout() {
                         {!collapsed && user && (
                             <Text fontSize="xs" color="fg.muted" px="2" truncate>
                                 {user.display_name || user.username} ({user.role})
+                            </Text>
+                        )}
+                        {!collapsed && user?.role === "leader" && user.leader_expires_at && (
+                            <Text fontSize="xs" color={
+                                new Date(user.leader_expires_at).getTime() - Date.now() < 7 * 86400_000
+                                    ? "orange.500" : "fg.muted"
+                            } px="2" truncate>
+                                Leader 到期：{new Date(user.leader_expires_at).toLocaleDateString()}
                             </Text>
                         )}
                         <HStack px="2" gap="2">

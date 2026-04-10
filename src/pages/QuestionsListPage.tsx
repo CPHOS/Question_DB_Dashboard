@@ -34,7 +34,8 @@ const categoryOptions = createListCollection({
 
 export default function QuestionsListPage() {
     const { user } = useAuth()
-    const canEdit = user?.role === "editor" || user?.role === "admin"
+    const canCreate = user?.role === "user" || user?.role === "leader" || user?.role === "admin"
+    const isAssignedReviewer = user?.role === "user" || user?.role === "leader"
 
     const [data, setData] = useState<Paginated<QuestionSummary> | null>(null)
     const [query, setQuery] = useState<QuestionsQuery>({ limit: LIMIT_DEFAULT, offset: 0 })
@@ -51,6 +52,7 @@ export default function QuestionsListPage() {
     const [diffMin, setDiffMin] = useState("")
     const [diffMax, setDiffMax] = useState("")
     const [paperIdFilter, setPaperIdFilter] = useState("")
+    const [reviewerFilter, setReviewerFilter] = useState("")
     const [createdAfter, setCreatedAfter] = useState("")
     const [createdBefore, setCreatedBefore] = useState("")
     const [updatedAfter, setUpdatedAfter] = useState("")
@@ -103,6 +105,7 @@ export default function QuestionsListPage() {
             ...prev,
             q: search || undefined,
             paper_id: paperIdFilter.trim() || undefined,
+            reviewer: reviewerFilter.trim() || undefined,
             score_min: scoreMin ? Number(scoreMin) : undefined,
             score_max: scoreMax ? Number(scoreMax) : undefined,
             difficulty_tag: (diffMin || diffMax) ? (diffTag || "human") : undefined,
@@ -169,7 +172,23 @@ export default function QuestionsListPage() {
             <Flex justify="space-between" align="center" wrap="wrap" gap="3">
                 <Heading size="xl">题目管理</Heading>
                 <HStack>
-                    {canEdit && (
+                    {isAssignedReviewer && (
+                        <Button
+                            size="sm"
+                            variant={query.assigned_reviewer_id ? "solid" : "outline"}
+                            colorPalette="purple"
+                            onClick={() =>
+                                setQuery((prev) => ({
+                                    ...prev,
+                                    assigned_reviewer_id: prev.assigned_reviewer_id ? undefined : user!.user_id,
+                                    offset: 0,
+                                }))
+                            }
+                        >
+                            我的审阅
+                        </Button>
+                    )}
+                    {canCreate && (
                         <Button asChild colorPalette="blue" size="sm">
                             <Link to="/questions/new"><LuPlus /> 新建题目</Link>
                         </Button>
@@ -281,6 +300,14 @@ export default function QuestionsListPage() {
                     onChange={(e) => setPaperIdFilter(e.target.value)}
                     onKeyDown={(e) => e.key === "Enter" && handleSearch()}
                     maxW="280px"
+                    size="sm"
+                />
+                <Input
+                    placeholder="审核人"
+                    value={reviewerFilter}
+                    onChange={(e) => setReviewerFilter(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+                    maxW="140px"
                     size="sm"
                 />
                 <Input

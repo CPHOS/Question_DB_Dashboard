@@ -15,7 +15,7 @@ import {
     Dialog,
     createListCollection,
 } from "@chakra-ui/react"
-import type { User, Paginated } from "@/types"
+import type { User, Paginated, Role } from "@/types"
 import * as api from "@/lib/api"
 import { toaster } from "@/components/ui/toaster-instance"
 import { LuPlus, LuChevronLeft, LuChevronRight, LuTrash2, LuPencil, LuKeyRound } from "react-icons/lu"
@@ -26,7 +26,9 @@ const LIMIT = 20
 const roleOptions = createListCollection({
     items: [
         { label: "Viewer", value: "viewer" },
-        { label: "Editor", value: "editor" },
+        { label: "User", value: "user" },
+        { label: "Leader", value: "leader" },
+        { label: "Bot", value: "bot" },
         { label: "Admin", value: "admin" },
     ],
 })
@@ -48,14 +50,16 @@ export default function UsersPage() {
     const [newUsername, setNewUsername] = useState("")
     const [newPassword, setNewPassword] = useState("")
     const [newDisplayName, setNewDisplayName] = useState("")
-    const [newRole, setNewRole] = useState<"viewer" | "editor" | "admin">("viewer")
+    const [newRole, setNewRole] = useState<Role>("viewer")
+    const [newLeaderExpires, setNewLeaderExpires] = useState("")
     const [creating, setCreating] = useState(false)
 
     // Edit user dialog
     const [editUser, setEditUser] = useState<User | null>(null)
     const [editDisplayName, setEditDisplayName] = useState("")
-    const [editRole, setEditRole] = useState<"viewer" | "editor" | "admin">("viewer")
+    const [editRole, setEditRole] = useState<Role>("viewer")
     const [editActive, setEditActive] = useState(true)
+    const [editLeaderExpires, setEditLeaderExpires] = useState("")
     const [saving, setSaving] = useState(false)
 
     // Reset password dialog
@@ -93,6 +97,7 @@ export default function UsersPage() {
                 password: newPassword,
                 display_name: newDisplayName.trim(),
                 role: newRole,
+                leader_expires_at: newRole === "leader" ? (newLeaderExpires ? new Date(newLeaderExpires).toISOString() : undefined) : undefined,
             })
             toaster.success({ title: "创建成功" })
             setShowCreate(false)
@@ -100,6 +105,7 @@ export default function UsersPage() {
             setNewPassword("")
             setNewDisplayName("")
             setNewRole("viewer")
+            setNewLeaderExpires("")
             load()
         } catch (err) {
             toaster.error({ title: "创建失败", description: String(err) })
@@ -113,6 +119,7 @@ export default function UsersPage() {
         setEditDisplayName(u.display_name)
         setEditRole(u.role)
         setEditActive(u.is_active)
+        setEditLeaderExpires(u.leader_expires_at ? u.leader_expires_at.slice(0, 16) : "")
     }
 
     const handleEdit = async (e: FormEvent) => {
@@ -124,6 +131,7 @@ export default function UsersPage() {
                 display_name: editDisplayName.trim(),
                 role: editRole,
                 is_active: editActive,
+                leader_expires_at: editRole === "leader" ? (editLeaderExpires ? new Date(editLeaderExpires).toISOString() : undefined) : null,
             })
             toaster.success({ title: "更新成功" })
             setEditUser(null)
@@ -173,7 +181,9 @@ export default function UsersPage() {
 
     const roleColor = (r: string) => {
         if (r === "admin") return "red"
-        if (r === "editor") return "blue"
+        if (r === "leader") return "purple"
+        if (r === "bot") return "orange"
+        if (r === "user") return "blue"
         return "gray"
     }
 
@@ -193,6 +203,7 @@ export default function UsersPage() {
                             <Table.ColumnHeader>用户名</Table.ColumnHeader>
                             <Table.ColumnHeader>显示名</Table.ColumnHeader>
                             <Table.ColumnHeader>角色</Table.ColumnHeader>
+                            <Table.ColumnHeader>到期时间</Table.ColumnHeader>
                             <Table.ColumnHeader>状态</Table.ColumnHeader>
                             <Table.ColumnHeader>创建时间</Table.ColumnHeader>
                             <Table.ColumnHeader>操作</Table.ColumnHeader>
@@ -201,7 +212,7 @@ export default function UsersPage() {
                     <Table.Body>
                         {loading && (
                             <Table.Row>
-                                <Table.Cell colSpan={6}><Text textAlign="center">加载中...</Text></Table.Cell>
+                                <Table.Cell colSpan={7}><Text textAlign="center">加载中...</Text></Table.Cell>
                             </Table.Row>
                         )}
                         {data?.items.map((u) => (
@@ -210,6 +221,11 @@ export default function UsersPage() {
                                 <Table.Cell>{u.display_name || "—"}</Table.Cell>
                                 <Table.Cell>
                                     <Badge colorPalette={roleColor(u.role)}>{u.role}</Badge>
+                                </Table.Cell>
+                                <Table.Cell fontSize="xs" color="fg.muted">
+                                    {u.role === "leader" && u.leader_expires_at
+                                        ? new Date(u.leader_expires_at).toLocaleDateString()
+                                        : "—"}
                                 </Table.Cell>
                                 <Table.Cell>
                                     {u.is_active ? (
@@ -293,7 +309,7 @@ export default function UsersPage() {
                                                 collection={roleOptions}
                                                 size="sm"
                                                 value={[newRole]}
-                                                onValueChange={(e) => setNewRole(e.value[0] as "viewer" | "editor" | "admin")}
+                                                onValueChange={(e) => setNewRole(e.value[0] as Role)}
                                             >
                                                 <Select.HiddenSelect />
                                                 <Select.Control>
@@ -316,6 +332,12 @@ export default function UsersPage() {
                                                 </Select.Positioner>
                                             </Select.Root>
                                         </Field.Root>
+                                        {newRole === "leader" && (
+                                            <Field.Root required>
+                                                <Field.Label>Leader 到期时间</Field.Label>
+                                                <Input type="datetime-local" value={newLeaderExpires} onChange={(e) => setNewLeaderExpires(e.target.value)} />
+                                            </Field.Root>
+                                        )}
                                     </Stack>
                                 </Box>
                             </Dialog.Body>
@@ -354,7 +376,7 @@ export default function UsersPage() {
                                                 collection={roleOptions}
                                                 size="sm"
                                                 value={[editRole]}
-                                                onValueChange={(e) => setEditRole(e.value[0] as "viewer" | "editor" | "admin")}
+                                                onValueChange={(e) => setEditRole(e.value[0] as Role)}
                                             >
                                                 <Select.HiddenSelect />
                                                 <Select.Control>
@@ -406,6 +428,12 @@ export default function UsersPage() {
                                                 </Select.Positioner>
                                             </Select.Root>
                                         </Field.Root>
+                                        {editRole === "leader" && (
+                                            <Field.Root required>
+                                                <Field.Label>Leader 到期时间</Field.Label>
+                                                <Input type="datetime-local" value={editLeaderExpires} onChange={(e) => setEditLeaderExpires(e.target.value)} />
+                                            </Field.Root>
+                                        )}
                                     </Stack>
                                 </Box>
                             </Dialog.Body>

@@ -39,14 +39,14 @@ export default function App() {
             {/* Questions */}
             <Route path="/questions" element={<QuestionsListPage />} />
             <Route path="/questions/new" element={
-              <RequireAuth roles={["editor", "admin"]}><QuestionCreatePage /></RequireAuth>
+              <RequireAuth roles={["user", "leader", "admin"]}><QuestionCreatePage /></RequireAuth>
             } />
             <Route path="/questions/:id" element={<QuestionDetailPage />} />
 
             {/* Papers */}
             <Route path="/papers" element={<PapersListPage />} />
             <Route path="/papers/new" element={
-              <RequireAuth roles={["editor", "admin"]}><PaperCreatePage /></RequireAuth>
+              <RequireAuth roles={["leader", "admin"]}><PaperCreatePage /></RequireAuth>
             } />
             <Route path="/papers/:id" element={<PaperDetailPage />} />
 

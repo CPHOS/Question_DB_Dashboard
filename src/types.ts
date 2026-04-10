@@ -19,20 +19,30 @@ export interface TokenResponse {
     expires_in: number
 }
 
+export type Role = "viewer" | "user" | "leader" | "bot" | "admin"
+
 export interface User {
     user_id: string
     username: string
     display_name: string
-    role: "viewer" | "editor" | "admin"
+    role: Role
     is_active: boolean
+    leader_expires_at: string | null
     created_at: string
     updated_at: string
 }
 
 // ─── Questions ───────────────────────────────────────────
+export interface DifficultyUpdatedBy {
+    user_id: string
+    username: string
+    display_name: string
+}
+
 export interface DifficultyValue {
     score: number
     notes?: string | null
+    updated_by?: DifficultyUpdatedBy | null
 }
 
 export type Difficulty = Record<string, DifficultyValue>
@@ -47,6 +57,8 @@ export interface QuestionSummary {
     difficulty: Difficulty
     author: string
     reviewers: string[]
+    allow_auto_reviewer: boolean
+    created_by: string | null
     created_at: string
     updated_at: string
 }
@@ -68,20 +80,32 @@ export interface AdminQuestionDetail extends QuestionDetail {
     is_deleted: boolean
 }
 
+export interface ReviewerInfo {
+    reviewer_id: string
+    username: string
+    display_name: string
+    assigned_by: string
+    created_at: string
+}
+
 export interface QuestionPatchRequest {
     category?: "none" | "T" | "E"
     description?: string
     tags?: string[]
     status?: "none" | "reviewed" | "used"
     difficulty?: Difficulty
+    delete_difficulty_tags?: string[]
     author?: string
     reviewers?: string[]
+    allow_auto_reviewer?: boolean
 }
 
 export interface QuestionsQuery {
     paper_id?: string
     category?: string
     tag?: string
+    reviewer?: string
+    assigned_reviewer_id?: string
     score_min?: number
     score_max?: number
     difficulty_tag?: string
@@ -103,6 +127,7 @@ export interface PaperSummary {
     title: string
     subtitle: string
     question_count?: number
+    created_by: string | null
     created_at: string
     updated_at: string
 }
@@ -164,13 +189,15 @@ export interface CreateUserRequest {
     username: string
     password: string
     display_name?: string
-    role?: "viewer" | "editor" | "admin"
+    role?: Role
+    leader_expires_at?: string | null
 }
 
 export interface UpdateUserRequest {
     display_name?: string
-    role?: "viewer" | "editor" | "admin"
+    role?: Role
     is_active?: boolean
+    leader_expires_at?: string | null
 }
 
 // ─── Ops ─────────────────────────────────────────────────

@@ -51,6 +51,7 @@ export default function AdminQuestionsPage() {
     const [diffTag, setDiffTag] = useState("human")
     const [diffMin, setDiffMin] = useState("")
     const [diffMax, setDiffMax] = useState("")
+    const [reviewerFilter, setReviewerFilter] = useState("")
     const [createdAfter, setCreatedAfter] = useState("")
     const [createdBefore, setCreatedBefore] = useState("")
     const [updatedAfter, setUpdatedAfter] = useState("")
@@ -104,6 +105,7 @@ export default function AdminQuestionsPage() {
         setQuery((prev) => ({
             ...prev,
             q: search || undefined,
+            reviewer: reviewerFilter.trim() || undefined,
             score_min: scoreMin ? Number(scoreMin) : undefined,
             score_max: scoreMax ? Number(scoreMax) : undefined,
             difficulty_tag: (diffMin || diffMax) ? (diffTag || "human") : undefined,
@@ -260,6 +262,14 @@ export default function AdminQuestionsPage() {
 
             {/* Filters row 2: score & difficulty */}
             <HStack wrap="wrap" gap="2">
+                <Input
+                    placeholder="审核人"
+                    value={reviewerFilter}
+                    onChange={(e) => setReviewerFilter(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+                    maxW="140px"
+                    size="sm"
+                />
                 <Input placeholder="最低分数" value={scoreMin} onChange={(e) => setScoreMin(e.target.value)}
                     onKeyDown={(e) => e.key === "Enter" && handleSearch()} maxW="100px" size="sm" type="number" />
                 <Input placeholder="最高分数" value={scoreMax} onChange={(e) => setScoreMax(e.target.value)}

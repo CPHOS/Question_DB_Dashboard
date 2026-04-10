@@ -26,7 +26,6 @@ export default function PaperDetailPage() {
     const { id } = useParams<{ id: string }>()
     const navigate = useNavigate()
     const { user } = useAuth()
-    const canEdit = user?.role === "editor" || user?.role === "admin"
 
     const [paper, setPaper] = useState<PaperDetail | null>(null)
     const [failedId, setFailedId] = useState<string | null>(null)
@@ -96,6 +95,9 @@ export default function PaperDetailPage() {
     }
 
     if (!currentPaper) return <Text>试卷不存在</Text>
+
+    const isOwner = !!(user && currentPaper.created_by && currentPaper.created_by === user.user_id)
+    const canEdit = user?.role === "admin" || (user?.role === "leader" && isOwner)
 
     return (
         <Stack gap="5">

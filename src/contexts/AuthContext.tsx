@@ -16,7 +16,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
         try {
             const me = await api.getMe()
-            setUser(me)
+            if (me.role === "bot") {
+                clearTokens()
+                setUser(null)
+            } else {
+                setUser(me)
+            }
         } catch {
             clearTokens()
             setUser(null)
@@ -32,6 +37,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const loginFn = useCallback(async (username: string, password: string) => {
         await api.login({ username, password })
         const me = await api.getMe()
+        if (me.role === "bot") {
+            await api.logout()
+            throw new Error("机器人账号不允许通过前端登录")
+        }
         setUser(me)
     }, [])
 

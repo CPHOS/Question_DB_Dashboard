@@ -13,12 +13,22 @@ import {
     createListCollection,
 } from "@chakra-ui/react"
 import * as api from "@/lib/api"
+import { useAuth } from "@/contexts/useAuth"
 import { toaster } from "@/components/ui/toaster-instance"
 import { LuArrowLeft } from "react-icons/lu"
 import FileDropzone from "@/components/FileDropzone"
 import TagInput from "@/components/TagInput"
 import DifficultyEditor from "@/components/DifficultyEditor"
 import type { Difficulty } from "@/types"
+import { loadPreferences } from "@/lib/preferences"
+
+function stripUpdatedBy(d: Difficulty): Difficulty {
+    const result: Difficulty = {}
+    for (const [k, v] of Object.entries(d)) {
+        result[k] = { score: v.score, notes: v.notes ?? null }
+    }
+    return result
+}
 
 const categoryOptions = createListCollection({
     items: [
@@ -38,6 +48,8 @@ const statusOptions = createListCollection({
 
 export default function QuestionCreatePage() {
     const navigate = useNavigate()
+    const { user } = useAuth()
+    const isUser = user?.role === "user"
     const [loading, setLoading] = useState(false)
     const [description, setDescription] = useState("")
     const [category, setCategory] = useState("none")
@@ -52,6 +64,14 @@ export default function QuestionCreatePage() {
     useEffect(() => {
         api.getQuestionTags().then((r) => setTagSuggestions(r.tags)).catch(() => {})
     }, [])
+
+    useEffect(() => {
+        if (!user) return
+        const prefs = loadPreferences(user.user_id)
+        if (prefs.autoFillAuthor && prefs.authorName) {
+            setAuthor(prefs.authorName)
+        }
+    }, [user])
 
     const handleSubmit = async (e: FormEvent) => {
         e.preventDefault()
@@ -73,10 +93,12 @@ export default function QuestionCreatePage() {
             fd.append("status", status)
             fd.append("author", author.trim())
 
-            fd.append("difficulty", JSON.stringify(difficulty))
+            if (!isUser) {
+                fd.append("difficulty", JSON.stringify(stripUpdatedBy(difficulty)))
+                fd.append("reviewers", JSON.stringify(reviewers))
+            }
 
             fd.append("tags", JSON.stringify(tags))
-            fd.append("reviewers", JSON.stringify(reviewers))
 
             const res = await api.createQuestion(fd)
             toaster.success({ title: "创建成功" })
@@ -184,20 +206,24 @@ export default function QuestionCreatePage() {
                         <Input value={author} onChange={(e) => setAuthor(e.target.value)} placeholder="命题人姓名" />
                     </Field.Root>
 
-                    <Field.Root>
-                        <Field.Label>审题人</Field.Label>
-                        <TagInput value={reviewers} onChange={setReviewers} placeholder="输入审题人后按回车添加" />
-                    </Field.Root>
+                    {!isUser && (
+                        <Field.Root>
+                            <Field.Label>审题人</Field.Label>
+                            <TagInput value={reviewers} onChange={setReviewers} placeholder="输入审题人后按回车添加" />
+                        </Field.Root>
+                    )}
 
                     <Field.Root>
                         <Field.Label>标签</Field.Label>
                         <TagInput value={tags} onChange={setTags} placeholder="输入标签后按回车添加" suggestions={tagSuggestions} />
                     </Field.Root>
 
-                    <Field.Root>
-                        <Field.Label>难度评估</Field.Label>
-                        <DifficultyEditor value={difficulty} onChange={setDifficulty} />
-                    </Field.Root>
+                    {!isUser && (
+                        <Field.Root>
+                            <Field.Label>难度评估</Field.Label>
+                            <DifficultyEditor value={difficulty} onChange={setDifficulty} />
+                        </Field.Root>
+                    )}
 
                     <Button type="submit" colorPalette="blue" loading={loading}>
                         创建题目

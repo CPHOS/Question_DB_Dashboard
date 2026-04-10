@@ -9,6 +9,7 @@ import {
     Field,
     IconButton,
     Text,
+    Badge,
 } from "@chakra-ui/react"
 import { LuPlus, LuX } from "react-icons/lu"
 import type { Difficulty } from "@/types"
@@ -63,9 +64,16 @@ export default function DifficultyEditor({ value, onChange }: Props) {
                     p="3"
                 >
                     <HStack mb="2" justify="space-between">
-                        <Text fontWeight="medium" fontSize="sm">
-                            {tag === "human" ? "人工难度 (human)" : tag}
-                        </Text>
+                        <HStack gap="2" align="center">
+                            <Text fontWeight="medium" fontSize="sm">
+                                {tag === "human" ? "人工难度 (human)" : tag}
+                            </Text>
+                            {value[tag]?.updated_by && (
+                                <Badge size="sm" colorPalette="purple" variant="subtle">
+                                    {value[tag].updated_by!.display_name || value[tag].updated_by!.username} (@{value[tag].updated_by!.username})
+                                </Badge>
+                            )}
+                        </HStack>
                         {tag !== "human" && (
                             <IconButton
                                 aria-label="删除"

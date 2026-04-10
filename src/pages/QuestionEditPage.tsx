@@ -16,11 +16,21 @@ import {
 } from "@chakra-ui/react"
 import type { QuestionDetail } from "@/types"
 import * as api from "@/lib/api"
+import { useAuth } from "@/contexts/useAuth"
 import { toaster } from "@/components/ui/toaster-instance"
 import FileDropzone from "@/components/FileDropzone"
 import TagInput from "@/components/TagInput"
 import DifficultyEditor from "@/components/DifficultyEditor"
 import type { Difficulty } from "@/types"
+import { loadPreferences } from "@/lib/preferences"
+
+function stripUpdatedBy(d: Difficulty): Difficulty {
+    const result: Difficulty = {}
+    for (const [k, v] of Object.entries(d)) {
+        result[k] = { score: v.score, notes: v.notes ?? null }
+    }
+    return result
+}
 
 const categoryOptions = createListCollection({
     items: [
@@ -43,9 +53,12 @@ interface Props {
     open: boolean
     onClose: () => void
     onSaved: () => void
+    reviewerOnly?: boolean
+    userOnly?: boolean
 }
 
-export default function QuestionEditDrawer({ questionId, open, onClose, onSaved }: Props) {
+export default function QuestionEditDrawer({ questionId, open, onClose, onSaved, reviewerOnly = false, userOnly = false }: Props) {
+    const { user } = useAuth()
     const [question, setQuestion] = useState<QuestionDetail | null>(null)
     const [loading, setLoading] = useState(true)
     const [saving, setSaving] = useState(false)
@@ -91,20 +104,61 @@ export default function QuestionEditDrawer({ questionId, open, onClose, onSaved 
         if (!questionId) return
         setSaving(true)
         try {
-            await api.patchQuestion(questionId, {
-                description: description.trim(),
-                category: category as "none" | "T" | "E",
-                status: status as "none" | "reviewed" | "used",
-                author: author.trim(),
-                reviewers,
-                tags,
-                difficulty,
-            })
+            if (reviewerOnly) {
+                // Only send tags the current user can modify:
+                // - tags with no updated_by (newly created by this user)
+                // - tags where updated_by.user_id matches current user
+                // - human tag if current user is last editor
+                const myDifficulty: Difficulty = {}
+                for (const [tag, val] of Object.entries(difficulty)) {
+                    const isOwn = !val.updated_by || val.updated_by.user_id === user?.user_id
+                    if (isOwn) {
+                        myDifficulty[tag] = { score: val.score, notes: val.notes ?? null }
+                    }
+                }
+                await api.patchQuestion(questionId, { difficulty: myDifficulty })
 
-            if (file) {
-                const fd = new FormData()
-                fd.append("file", file)
-                await api.replaceQuestionFile(questionId, fd)
+                // Auto-fill reviewer name if enabled and question allows it
+                if (user && question?.allow_auto_reviewer) {
+                    const prefs = loadPreferences(user.user_id)
+                    if (prefs.autoFillReviewer && prefs.reviewerName) {
+                        const name = prefs.reviewerName.trim()
+                        if (name && !question.reviewers.includes(name)) {
+                            await api.patchQuestion(questionId, {
+                                reviewers: [...question.reviewers, name],
+                            })
+                        }
+                    }
+                }
+            } else if (userOnly) {
+                await api.patchQuestion(questionId, {
+                    description: description.trim(),
+                    category: category as "none" | "T" | "E",
+                    author: author.trim(),
+                    tags,
+                })
+
+                if (file) {
+                    const fd = new FormData()
+                    fd.append("file", file)
+                    await api.replaceQuestionFile(questionId, fd)
+                }
+            } else {
+                await api.patchQuestion(questionId, {
+                    description: description.trim(),
+                    category: category as "none" | "T" | "E",
+                    status: status as "none" | "reviewed" | "used",
+                    author: author.trim(),
+                    reviewers,
+                    tags,
+                    difficulty: stripUpdatedBy(difficulty),
+                })
+
+                if (file) {
+                    const fd = new FormData()
+                    fd.append("file", file)
+                    await api.replaceQuestionFile(questionId, fd)
+                }
             }
 
             toaster.success({ title: "保存成功" })
@@ -124,7 +178,7 @@ export default function QuestionEditDrawer({ questionId, open, onClose, onSaved 
                 <Drawer.Positioner>
                     <Drawer.Content>
                         <Drawer.Header>
-                            <Drawer.Title>编辑题目</Drawer.Title>
+                            <Drawer.Title>{reviewerOnly ? "审阅编辑 — 难度评估" : "编辑题目"}</Drawer.Title>
                             <Drawer.CloseTrigger asChild>
                                 <CloseButton size="sm" />
                             </Drawer.CloseTrigger>
@@ -137,18 +191,20 @@ export default function QuestionEditDrawer({ questionId, open, onClose, onSaved 
                             ) : question ? (
                                 <Box as="form" id="questionEditForm" onSubmit={handleSubmit}>
                                     <Stack gap="4">
-                                        <Field.Root>
-                                            <Field.Label>替换 ZIP 文件（可选）</Field.Label>
-                                            <FileDropzone onFileChange={setFile} label="拖放文件替换（可选）" />
-                                        </Field.Root>
+                                        {!reviewerOnly && (
+                                            <>
+                                                <Field.Root>
+                                                    <Field.Label>替换 ZIP 文件（可选）</Field.Label>
+                                                    <FileDropzone onFileChange={setFile} label="拖放文件替换（可选）" />
+                                                </Field.Root>
 
-                                        <Field.Root required>
-                                            <Field.Label>描述</Field.Label>
-                                            <Input
-                                                value={description}
-                                                onChange={(e) => setDescription(e.target.value)}
-                                            />
-                                        </Field.Root>
+                                                <Field.Root required>
+                                                    <Field.Label>描述</Field.Label>
+                                                    <Input
+                                                        value={description}
+                                                        onChange={(e) => setDescription(e.target.value)}
+                                                    />
+                                                </Field.Root>
 
                                         <HStack gap="4">
                                             <Field.Root>
@@ -180,6 +236,7 @@ export default function QuestionEditDrawer({ questionId, open, onClose, onSaved 
                                                     </Select.Positioner>
                                                 </Select.Root>
                                             </Field.Root>
+                                            {!userOnly && (
                                             <Field.Root>
                                                 <Field.Label>状态</Field.Label>
                                                 <Select.Root
@@ -209,6 +266,7 @@ export default function QuestionEditDrawer({ questionId, open, onClose, onSaved 
                                                     </Select.Positioner>
                                                 </Select.Root>
                                             </Field.Root>
+                                            )}
                                         </HStack>
 
                                         <Field.Root>
@@ -216,20 +274,26 @@ export default function QuestionEditDrawer({ questionId, open, onClose, onSaved 
                                             <Input value={author} onChange={(e) => setAuthor(e.target.value)} />
                                         </Field.Root>
 
+                                        {!userOnly && (
                                         <Field.Root>
                                             <Field.Label>审题人</Field.Label>
                                             <TagInput value={reviewers} onChange={setReviewers} placeholder="输入审题人后按回车添加" />
                                         </Field.Root>
+                                        )}
 
                                         <Field.Root>
                                             <Field.Label>标签</Field.Label>
                                             <TagInput value={tags} onChange={setTags} placeholder="输入标签后按回车添加" suggestions={tagSuggestions} />
                                         </Field.Root>
+                                            </>
+                                        )}
 
+                                        {!userOnly && (
                                         <Field.Root>
                                             <Field.Label>难度评估</Field.Label>
                                             <DifficultyEditor value={difficulty} onChange={setDifficulty} />
                                         </Field.Root>
+                                        )}
                                     </Stack>
                                 </Box>
                             ) : null}

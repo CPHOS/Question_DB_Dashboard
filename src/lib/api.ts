@@ -25,6 +25,7 @@ import type {
     ExportResult,
     QualityCheckRequest,
     QualityCheckResult,
+    ReviewerInfo,
 } from "@/types"
 
 const BASE = import.meta.env.VITE_API_BASE ?? "http://127.0.0.1:8080"
@@ -185,6 +186,23 @@ export async function deleteQuestion(id: string) {
     return request<{ question_id: string; status: string }>(`/questions/${id}`, { method: "DELETE" })
 }
 
+export async function getQuestionReviewers(id: string) {
+    return request<{ reviewers: ReviewerInfo[] }>(`/questions/${id}/reviewers`)
+}
+
+export async function addQuestionReviewer(questionId: string, reviewerId: string) {
+    return request<{ reviewers: ReviewerInfo[] }>(`/questions/${questionId}/reviewers`, {
+        method: "POST",
+        body: JSON.stringify({ reviewer_id: reviewerId }),
+    })
+}
+
+export async function removeQuestionReviewer(questionId: string, reviewerId: string) {
+    return request<{ reviewers: ReviewerInfo[] }>(`/questions/${questionId}/reviewers/${reviewerId}`, {
+        method: "DELETE",
+    })
+}
+
 export async function bundleQuestions(ids: string[]) {
     return request<Blob>("/questions/bundles", {
         method: "POST",
@@ -273,6 +291,10 @@ export async function gcRun() {
 
 export async function adminGetUsers(limit = 20, offset = 0) {
     return request<Paginated<User>>(`/admin/users${qs({ limit, offset } as { [key: string]: unknown })}`)
+}
+
+export async function searchUsers(q: string, limit = 10) {
+    return request<Paginated<User>>(`/users/search${qs({ q, limit } as { [key: string]: unknown })}`)
 }
 
 export async function adminCreateUser(body: CreateUserRequest) {

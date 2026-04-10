@@ -34,7 +34,7 @@ const categoryOptions = createListCollection({
 
 export default function PapersListPage() {
     const { user } = useAuth()
-    const canEdit = user?.role === "editor" || user?.role === "admin"
+    const canCreate = user?.role === "leader" || user?.role === "admin"
 
     const [data, setData] = useState<Paginated<PaperSummary> | null>(null)
     const [query, setQuery] = useState<PapersQuery>({ limit: LIMIT_DEFAULT, offset: 0 })
@@ -140,7 +140,7 @@ export default function PapersListPage() {
             <Flex justify="space-between" align="center" wrap="wrap" gap="3">
                 <Heading size="xl">试卷管理</Heading>
                 <HStack>
-                    {canEdit && (
+                    {canCreate && (
                         <Button asChild colorPalette="blue" size="sm">
                             <Link to="/papers/new"><LuPlus /> 新建试卷</Link>
                         </Button>
