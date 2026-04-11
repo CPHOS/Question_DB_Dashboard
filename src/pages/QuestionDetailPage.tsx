@@ -14,7 +14,6 @@ import {
     Card,
     Spinner,
     Center,
-    Popover,
     Portal,
     IconButton,
     Input,
@@ -22,12 +21,14 @@ import {
     Select,
     createListCollection,
     Dialog,
+    Tabs,
 } from "@chakra-ui/react"
 import type { QuestionDetail, ReviewerInfo, User } from "@/types"
 import * as api from "@/lib/api"
 import { useAuth } from "@/contexts/useAuth"
 import { toaster } from "@/components/ui/toaster-instance"
-import { LuArrowLeft, LuPencil, LuTrash2, LuX, LuCheck, LuPlus } from "react-icons/lu"
+import { LuArrowLeft, LuPencil, LuTrash2, LuX, LuCheck, LuPlus, LuEye } from "react-icons/lu"
+import MarkdownRenderer from "@/components/MarkdownRenderer"
 import ConfirmDialog from "@/components/ConfirmDialog"
 import UserSearchPicker from "@/components/UserSearchPicker"
 import TagInput from "@/components/TagInput"
@@ -200,12 +201,47 @@ export default function QuestionDetailPage() {
     // Tag suggestions
     const [tagSuggestions, setTagSuggestions] = useState<string[]>([])
 
-    // Difficulty add form
-    const [showAddDifficulty, setShowAddDifficulty] = useState(false)
-    const [newDiffTag, setNewDiffTag] = useState("")
-    const [newDiffScore, setNewDiffScore] = useState(5)
-    const [newDiffNotes, setNewDiffNotes] = useState("")
-    const [addingDifficulty, setAddingDifficulty] = useState(false)
+    // Unified difficulty dialog (add & edit)
+    const [diffDialogOpen, setDiffDialogOpen] = useState(false)
+    const [diffDialogMode, setDiffDialogMode] = useState<"add" | "edit">("add")
+    const [diffDialogTag, setDiffDialogTag] = useState("")
+    const [diffDialogScore, setDiffDialogScore] = useState(5)
+    const [diffDialogNotes, setDiffDialogNotes] = useState("")
+    const [diffDialogSaving, setDiffDialogSaving] = useState(false)
+
+    // Markdown notes preview dialog
+    const [notesPreviewOpen, setNotesPreviewOpen] = useState(false)
+    const [notesPreviewTag, setNotesPreviewTag] = useState("")
+    const [notesPreviewContent, setNotesPreviewContent] = useState("")
+
+    const openDiffDialog = (mode: "add" | "edit", tag = "", score = 5, notes = "") => {
+        setDiffDialogMode(mode)
+        setDiffDialogTag(tag)
+        setDiffDialogScore(score)
+        setDiffDialogNotes(notes)
+        setDiffDialogOpen(true)
+    }
+
+    const closeDiffDialog = () => {
+        setDiffDialogOpen(false)
+        setDiffDialogTag("")
+        setDiffDialogScore(5)
+        setDiffDialogNotes("")
+    }
+
+    const openNotesPreview = (tag: string, notes: string) => {
+        setNotesPreviewTag(tag)
+        setNotesPreviewContent(notes)
+        setNotesPreviewOpen(true)
+    }
+
+    // Difficulty delete confirmation
+    const [deleteDiffTag, setDeleteDiffTag] = useState<string | null>(null)
+    const confirmDeleteDifficulty = (tag: string) => setDeleteDiffTag(tag)
+    const handleConfirmDeleteDifficulty = async () => {
+        if (deleteDiffTag) await handleDeleteDifficulty(deleteDiffTag)
+        setDeleteDiffTag(null)
+    }
 
     const currentQuestion = question?.question_id === id ? question : null
     const isLoading = Boolean(id) && failedId !== id && (reloading || !currentQuestion)
@@ -303,32 +339,32 @@ export default function QuestionDetailPage() {
         }
     }
 
-    const handleAddDifficulty = async () => {
-        if (!id || !newDiffTag.trim()) return
-        setAddingDifficulty(true)
+    const handleDiffDialogSave = async () => {
+        if (!id || !diffDialogTag.trim()) return
+        setDiffDialogSaving(true)
         try {
-            const detail = await api.createDifficulty(id, {
-                algorithm_tag: newDiffTag.trim(),
-                score: newDiffScore,
-                notes: newDiffNotes.trim() || undefined,
-            })
+            let detail: QuestionDetail
+            if (diffDialogMode === "add") {
+                detail = await api.createDifficulty(id, {
+                    algorithm_tag: diffDialogTag.trim(),
+                    score: diffDialogScore,
+                    notes: diffDialogNotes.trim() || undefined,
+                })
+                toaster.success({ title: "难度已添加" })
+            } else {
+                detail = await api.updateDifficulty(id, diffDialogTag.trim(), {
+                    score: diffDialogScore,
+                    notes: diffDialogNotes.trim() || undefined,
+                })
+                toaster.success({ title: "难度已更新" })
+            }
             setQuestion(detail)
-            setShowAddDifficulty(false)
-            setNewDiffTag("")
-            setNewDiffScore(5)
-            setNewDiffNotes("")
-            toaster.success({ title: "难度已添加" })
+            closeDiffDialog()
         } catch (e) {
-            toaster.error({ title: "添加失败", description: String(e) })
+            toaster.error({ title: diffDialogMode === "add" ? "添加失败" : "更新失败", description: String(e) })
         } finally {
-            setAddingDifficulty(false)
+            setDiffDialogSaving(false)
         }
-    }
-
-    const handleUpdateDifficulty = async (tag: string, score: number, notes?: string) => {
-        if (!id) return
-        const detail = await api.updateDifficulty(id, tag, { score, notes })
-        setQuestion(detail)
     }
 
     const handleDeleteDifficulty = async (tag: string) => {
@@ -585,7 +621,7 @@ export default function QuestionDetailPage() {
                                 <HStack mb="2" justify="space-between">
                                     <Text fontSize="xs" color="fg.muted">难度</Text>
                                     {canManageDifficulty(role, isAssignedReviewer, q.status) && (
-                                        <Button size="2xs" variant="ghost" onClick={() => setShowAddDifficulty(true)}>
+                                        <Button size="2xs" variant="ghost" onClick={() => openDiffDialog("add")}>
                                             <LuPlus /> 添加难度
                                         </Button>
                                     )}
@@ -619,10 +655,9 @@ export default function QuestionDetailPage() {
                                                 hasEditor={!!editor}
                                                 canEdit={canModify}
                                                 canDelete={canModify}
-                                                onUpdate={async (score, notes) => {
-                                                    await handleUpdateDifficulty(tag, score, notes)
-                                                }}
-                                                onDelete={() => handleDeleteDifficulty(tag)}
+                                                onEdit={() => openDiffDialog("edit", tag, val.score, val.notes ?? "")}
+                                                onDelete={() => confirmDeleteDifficulty(tag)}
+                                                onNotesClick={() => val.notes && openNotesPreview(label, val.notes)}
                                             />
                                         )
                                     })}
@@ -711,18 +746,27 @@ export default function QuestionDetailPage() {
                 onCancel={() => setConfirmOpen(false)}
             />
 
-            {/* Add difficulty dialog */}
+            <ConfirmDialog
+                open={deleteDiffTag !== null}
+                title="删除确认"
+                description={`确定要删除难度「${deleteDiffTag}」吗？`}
+                onConfirm={handleConfirmDeleteDifficulty}
+                onCancel={() => setDeleteDiffTag(null)}
+            />
+
+            {/* Unified difficulty dialog (add & edit) */}
             <Dialog.Root
-                open={showAddDifficulty}
-                onOpenChange={(d) => { if (!d.open) { setShowAddDifficulty(false); setNewDiffTag(""); setNewDiffScore(5); setNewDiffNotes("") } }}
+                open={diffDialogOpen}
+                onOpenChange={(d) => { if (!d.open) closeDiffDialog() }}
                 placement="center"
+                size="lg"
             >
                 <Portal>
                     <Dialog.Backdrop />
                     <Dialog.Positioner>
                         <Dialog.Content>
                             <Dialog.Header>
-                                <Dialog.Title>添加难度</Dialog.Title>
+                                <Dialog.Title>{diffDialogMode === "add" ? "添加难度" : "编辑难度"}</Dialog.Title>
                             </Dialog.Header>
                             <Dialog.Body>
                                 <Stack gap="3">
@@ -730,44 +774,92 @@ export default function QuestionDetailPage() {
                                         <Input
                                             size="sm"
                                             placeholder="难度标签名 (如 human)"
-                                            value={newDiffTag}
-                                            onChange={(e) => setNewDiffTag(e.target.value)}
+                                            value={diffDialogTag}
+                                            onChange={(e) => setDiffDialogTag(e.target.value)}
+                                            disabled={diffDialogMode === "edit"}
                                         />
                                         <Input
                                             size="sm"
                                             type="number"
                                             min={1}
                                             max={10}
-                                            value={newDiffScore}
-                                            onChange={(e) => setNewDiffScore(Number(e.target.value) || 1)}
+                                            value={diffDialogScore}
+                                            onChange={(e) => setDiffDialogScore(Number(e.target.value) || 1)}
                                             maxW="80px"
                                             placeholder="1-10"
                                         />
                                     </HStack>
-                                    <Textarea
-                                        size="sm"
-                                        placeholder="备注（可选）"
-                                        value={newDiffNotes}
-                                        onChange={(e) => setNewDiffNotes(e.target.value)}
-                                        rows={2}
-                                    />
+                                    <Tabs.Root defaultValue="edit" variant="line" size="sm">
+                                        <Tabs.List>
+                                            <Tabs.Trigger value="edit">编辑备注</Tabs.Trigger>
+                                            <Tabs.Trigger value="preview"><LuEye /> 预览</Tabs.Trigger>
+                                        </Tabs.List>
+                                        <Tabs.Content value="edit">
+                                            <Textarea
+                                                size="sm"
+                                                placeholder="备注（可选，支持 Markdown 和 LaTeX）"
+                                                value={diffDialogNotes}
+                                                onChange={(e) => setDiffDialogNotes(e.target.value)}
+                                                rows={4}
+                                            />
+                                        </Tabs.Content>
+                                        <Tabs.Content value="preview">
+                                            <Box
+                                                minH="100px"
+                                                p="2"
+                                                borderWidth="1px"
+                                                borderRadius="md"
+                                                fontSize="sm"
+                                            >
+                                                {diffDialogNotes.trim() ? (
+                                                    <MarkdownRenderer>{diffDialogNotes}</MarkdownRenderer>
+                                                ) : (
+                                                    <Text color="fg.muted">无内容</Text>
+                                                )}
+                                            </Box>
+                                        </Tabs.Content>
+                                    </Tabs.Root>
                                 </Stack>
                             </Dialog.Body>
                             <Dialog.Footer>
-                                <Button
-                                    variant="outline"
-                                    onClick={() => { setShowAddDifficulty(false); setNewDiffTag(""); setNewDiffScore(5); setNewDiffNotes("") }}
-                                >
+                                <Button variant="outline" onClick={closeDiffDialog}>
                                     取消
                                 </Button>
                                 <Button
                                     colorPalette="blue"
-                                    onClick={handleAddDifficulty}
-                                    loading={addingDifficulty}
-                                    disabled={!newDiffTag.trim()}
+                                    onClick={handleDiffDialogSave}
+                                    loading={diffDialogSaving}
+                                    disabled={!diffDialogTag.trim()}
                                 >
-                                    添加
+                                    {diffDialogMode === "add" ? "添加" : "保存"}
                                 </Button>
+                            </Dialog.Footer>
+                        </Dialog.Content>
+                    </Dialog.Positioner>
+                </Portal>
+            </Dialog.Root>
+
+            {/* Notes markdown preview dialog */}
+            <Dialog.Root
+                open={notesPreviewOpen}
+                onOpenChange={(d) => { if (!d.open) setNotesPreviewOpen(false) }}
+                placement="center"
+                size="lg"
+            >
+                <Portal>
+                    <Dialog.Backdrop />
+                    <Dialog.Positioner>
+                        <Dialog.Content>
+                            <Dialog.Header>
+                                <Dialog.Title>{notesPreviewTag} — 备注</Dialog.Title>
+                            </Dialog.Header>
+                            <Dialog.Body>
+                                <Box fontSize="sm">
+                                    <MarkdownRenderer>{notesPreviewContent}</MarkdownRenderer>
+                                </Box>
+                            </Dialog.Body>
+                            <Dialog.Footer>
+                                <Button variant="outline" onClick={() => setNotesPreviewOpen(false)}>关闭</Button>
                             </Dialog.Footer>
                         </Dialog.Content>
                     </Dialog.Positioner>
@@ -777,7 +869,7 @@ export default function QuestionDetailPage() {
     )
 }
 
-// ─── Difficulty Badge with inline edit ───────────────────
+// ─── Difficulty Badge (view only, delegates edit to dialog) ──
 function DifficultyBadge({
     label,
     score,
@@ -786,8 +878,9 @@ function DifficultyBadge({
     hasEditor,
     canEdit,
     canDelete,
-    onUpdate,
+    onEdit,
     onDelete,
+    onNotesClick,
 }: {
     tag: string
     label: string
@@ -797,73 +890,17 @@ function DifficultyBadge({
     hasEditor: boolean
     canEdit: boolean
     canDelete: boolean
-    onUpdate: (score: number, notes?: string) => Promise<void>
+    onEdit: () => void
     onDelete: () => void
+    onNotesClick: () => void
 }) {
-    const [editing, setEditing] = useState(false)
-    const [editScore, setEditScore] = useState(score)
-    const [editNotes, setEditNotes] = useState(notes ?? "")
-    const [saving, setSaving] = useState(false)
-
-    useEffect(() => { setEditScore(score); setEditNotes(notes ?? "") }, [score, notes])
-
-    const handleSave = async () => {
-        setSaving(true)
-        try {
-            await onUpdate(editScore, editNotes.trim() || undefined)
-            setEditing(false)
-        } catch (e) {
-            toaster.error({ title: "更新失败", description: String(e) })
-        } finally {
-            setSaving(false)
-        }
-    }
-
-    if (editing) {
-        return (
-            <Card.Root size="sm" variant="outline" minW="200px">
-                <Card.Body>
-                    <Stack gap="2">
-                        <Text fontSize="sm" fontWeight="medium">{label}</Text>
-                        <HStack>
-                            <Input
-                                size="sm"
-                                type="number"
-                                min={1}
-                                max={10}
-                                value={editScore}
-                                onChange={(e) => setEditScore(Number(e.target.value) || 1)}
-                                maxW="80px"
-                            />
-                            <Text fontSize="xs" color="fg.muted">/10</Text>
-                        </HStack>
-                        <Textarea
-                            size="sm"
-                            placeholder="备注"
-                            value={editNotes}
-                            onChange={(e) => setEditNotes(e.target.value)}
-                            rows={1}
-                        />
-                        <HStack>
-                            <Button size="xs" colorPalette="green" onClick={handleSave} loading={saving}>
-                                保存
-                            </Button>
-                            <Button size="xs" variant="ghost" onClick={() => { setEditing(false); setEditScore(score); setEditNotes(notes ?? "") }}>
-                                取消
-                            </Button>
-                        </HStack>
-                    </Stack>
-                </Card.Body>
-            </Card.Root>
-        )
-    }
-
-    const badgeContent = (
+    return (
         <HStack gap="1">
             <Badge
                 colorPalette={hasEditor ? "purple" : "cyan"}
                 variant="subtle"
                 cursor={notes ? "pointer" : "default"}
+                onClick={() => { if (notes) onNotesClick() }}
             >
                 {label}: {score}/10{editorLabel}{notes ? " 💬" : ""}
             </Badge>
@@ -872,7 +909,7 @@ function DifficultyBadge({
                     aria-label="编辑难度"
                     size="2xs"
                     variant="ghost"
-                    onClick={() => setEditing(true)}
+                    onClick={onEdit}
                 >
                     <LuPencil />
                 </IconButton>
@@ -890,28 +927,4 @@ function DifficultyBadge({
             )}
         </HStack>
     )
-
-    if (notes) {
-        return (
-            <Popover.Root positioning={{ placement: "bottom" }}>
-                <Popover.Trigger asChild>
-                    <Box>{badgeContent}</Box>
-                </Popover.Trigger>
-                <Portal>
-                    <Popover.Positioner>
-                        <Popover.Content maxW="240px">
-                            <Popover.Arrow>
-                                <Popover.ArrowTip />
-                            </Popover.Arrow>
-                            <Popover.Body fontSize="sm">
-                                {notes}
-                            </Popover.Body>
-                        </Popover.Content>
-                    </Popover.Positioner>
-                </Portal>
-            </Popover.Root>
-        )
-    }
-
-    return badgeContent
 }

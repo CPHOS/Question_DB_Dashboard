@@ -18,6 +18,7 @@ import {
 import { Link } from "react-router-dom"
 import type { AdminQuestionDetail } from "@/types"
 import * as api from "@/lib/api"
+import MarkdownRenderer from "@/components/MarkdownRenderer"
 import { toaster } from "@/components/ui/toaster-instance"
 
 interface Props {
@@ -133,7 +134,7 @@ export default function AdminQuestionDetailDrawer({ questionId, open, onClose }:
                                                                         <Popover.ArrowTip />
                                                                     </Popover.Arrow>
                                                                     <Popover.Body fontSize="sm">
-                                                                        {val.notes}
+                                                                        <MarkdownRenderer>{val.notes!}</MarkdownRenderer>
                                                                     </Popover.Body>
                                                                 </Popover.Content>
                                                             </Popover.Positioner>
