@@ -110,6 +110,7 @@ export interface QuestionsQuery {
     paper_id?: string
     category?: string
     tag?: string
+    author?: string
     reviewer?: string
     assigned_reviewer_id?: string
     score_min?: number

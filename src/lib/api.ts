@@ -220,6 +220,20 @@ export async function deleteDifficulty(id: string, algorithmTag: string) {
     })
 }
 
+export async function patchQuestionAuthor(id: string, author: string) {
+    return request<QuestionDetail>(`/questions/${id}/author`, {
+        method: "PATCH",
+        body: JSON.stringify({ author }),
+    })
+}
+
+export async function patchQuestionReviewerNames(id: string, reviewers: string[]) {
+    return request<QuestionDetail>(`/questions/${id}/reviewer-names`, {
+        method: "PATCH",
+        body: JSON.stringify({ reviewers }),
+    })
+}
+
 export async function replaceQuestionFile(id: string, form: FormData) {
     return request(`/questions/${id}/file`, { method: "PUT", body: form })
 }

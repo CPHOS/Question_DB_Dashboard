@@ -15,6 +15,8 @@ interface Props {
     placeholder?: string
     /** User IDs to exclude from results (already added reviewers, etc.) */
     excludeIds?: string[]
+    /** Only show users with these roles (default: all except bot) */
+    filterRoles?: string[]
     /** Called when a user is selected */
     onSelect: (user: User) => void
     /** Disable the input */
@@ -24,6 +26,7 @@ interface Props {
 export default function UserSearchPicker({
     placeholder = "搜索用户名或显示名…",
     excludeIds = [],
+    filterRoles,
     onSelect,
     disabled,
 }: Props) {
@@ -45,7 +48,8 @@ export default function UserSearchPicker({
             try {
                 const res = await api.searchUsers(q.trim(), 10)
                 const filtered = res.items.filter(
-                    (u) => !excludeIds.includes(u.user_id) && u.role !== "bot"
+                    (u) => !excludeIds.includes(u.user_id) &&
+                        (filterRoles ? filterRoles.includes(u.role) : u.role !== "bot")
                 )
                 setResults(filtered)
                 setOpen(filtered.length > 0)

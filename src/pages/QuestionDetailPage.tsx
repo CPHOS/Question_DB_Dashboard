@@ -567,16 +567,49 @@ export default function QuestionDetailPage() {
                                 <Text fontWeight="medium">{q.score ?? "—"}</Text>
                             </Box>
 
-                            {/* Author (read-only, auto-managed) */}
+                            {/* Author (admin can edit) */}
                             <Box>
                                 <Text fontSize="xs" color="fg.muted" mb="1">命题人</Text>
-                                <Text fontWeight="medium">{q.author || "—"}</Text>
+                                <InlineEdit
+                                    value={q.author}
+                                    canEdit={role === "admin"}
+                                    onSave={async (v) => {
+                                        const detail = await api.patchQuestionAuthor(id, v as string)
+                                        setQuestion(detail)
+                                    }}
+                                    renderView={(v) => <Text fontWeight="medium">{(v as string) || "—"}</Text>}
+                                    renderEdit={(v, onChange) => (
+                                        <Input
+                                            size="sm"
+                                            value={v as string}
+                                            onChange={(e) => onChange(e.target.value)}
+                                            autoFocus
+                                        />
+                                    )}
+                                />
                             </Box>
 
-                            {/* Reviewers display (read-only, auto-managed) */}
+                            {/* Reviewers display (admin can edit) */}
                             <Box>
                                 <Text fontSize="xs" color="fg.muted" mb="1">审题人</Text>
-                                <Text fontWeight="medium">{q.reviewers.length > 0 ? q.reviewers.join(", ") : "—"}</Text>
+                                <InlineEdit
+                                    value={q.reviewers}
+                                    canEdit={role === "admin"}
+                                    onSave={async (v) => {
+                                        const detail = await api.patchQuestionReviewerNames(id, v as string[])
+                                        setQuestion(detail)
+                                    }}
+                                    renderView={(v) => <Text fontWeight="medium">{(v as string[]).length > 0 ? (v as string[]).join(", ") : "—"}</Text>}
+                                    renderEdit={(v, onChange) => (
+                                        <Box minW="200px">
+                                            <TagInput
+                                                value={v as string[]}
+                                                onChange={(tags) => onChange(tags)}
+                                                placeholder="输入审题人名称后按回车添加"
+                                            />
+                                        </Box>
+                                    )}
+                                />
                             </Box>
                         </HStack>
 
@@ -730,6 +763,7 @@ export default function QuestionDetailPage() {
                             <UserSearchPicker
                                 placeholder="搜索用户名或显示名添加审阅人…"
                                 excludeIds={reviewers.map((r) => r.reviewer_id)}
+                                filterRoles={["user", "leader"]}
                                 onSelect={handleAddReviewer}
                                 disabled={addingReviewer}
                             />

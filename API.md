@@ -105,7 +105,7 @@
 
 ```json
 {
-  "version": "0.1.0"
+  "version": "0.1.2"
 }
 ```
 
@@ -125,7 +125,7 @@
 - **角色**：5 级角色体系，基于能力而非线性层级
   - `viewer`：只读 + bundle 下载
   - `user`：可上传题目，编辑自己创建的题目，可被分配为审阅人
-  - `leader`：可创建/编辑/删除题目和试卷（非 used），可分配审阅人；有过期时间，过期后降级为 user
+  - `leader`：可创建/编辑/删除题目和试卷（非 used），可分配审阅人，也可被分配为审阅人；有过期时间，过期后降级为 user
   - `bot`：同 leader 权限，无过期时间，用于自动化程序
   - `admin`：全部权限 + ops + 用户管理 + 垃圾回收
 
@@ -394,6 +394,8 @@
 | 修改 tags | ✅ (自己的) | ✅ (非 used) | ✅ (被分配的) | ✅ |
 | 替换 file | ✅ (自己的) | ✅ (非 used) | — | ✅ |
 | 修改 status | — | ✅ (none/reviewed) | — | ✅ (任意) |
+| 修改 author | — | — | — | ✅ |
+| 修改 reviewer names | — | — | — | ✅ |
 | 创建难度 | — | ✅ (非 used) | ✅ (被分配的) | ✅ |
 | 修改难度 | — | ✅ (非 used) | ✅ (自己创建的) | ✅ |
 | 删除难度 | — | ✅ (非 used) | ✅ (自己创建的) | ✅ |
@@ -403,7 +405,7 @@
 **说明**：
 - "自己的" 指 `created_by` 为当前用户的题目
 - "非 used" 指 `status != 'used'` 的题目
-- "被分配的" 指在 `question_reviews` 表中被 leader 分配为审阅人的题目
+- "被分配的" 指在 `question_reviews` 表中被 leader 分配为审阅人的题目（user 和 leader 均可被分配）
 - reviewer 进行任意操作时，自动将其 display_name 加入 `questions.reviewers` 数组（去重）
 - 替换文件时，后端自动重置 difficulty（清空）、status（`none`）、author（创建者 display_name）、reviewers（`[]`）
 - 上传时，后端自动设置 difficulty 为空、status 为 `none`、author 为上传者 display_name、reviewers 为 `[]`
@@ -465,7 +467,7 @@
 
 按条件分页查询题目。认证：`viewer` 及以上。
 
-**Query 参数**：`paper_id`, `category`, `tag`, `reviewer`, `assigned_reviewer_id`, `score_min`, `score_max`, `difficulty_tag`, `difficulty_min`, `difficulty_max`, `q`, `created_after`, `created_before`, `updated_after`, `updated_before`, `limit` (1-100, 默认 20), `offset` (默认 0)。
+**Query 参数**：`paper_id`, `category`, `tag`, `author`, `reviewer`（支持逗号分隔多值，匹配任一）, `assigned_reviewer_id`, `score_min`, `score_max`, `difficulty_tag`, `difficulty_min`, `difficulty_max`, `q`, `created_after`, `created_before`, `updated_after`, `updated_before`, `limit` (1-100, 默认 20), `offset` (默认 0)。
 
 **成功响应** `200`：分页包裹，`items` 为 `QuestionSummary[]`。
 
@@ -574,6 +576,31 @@
 
 ---
 
+#### `PATCH /questions/:question_id/author`
+
+更新题目命题人。
+
+- **认证**：admin / bot
+- **Content-Type**：`application/json`
+- **请求体**：`{ "author": "string" }`
+
+**成功响应** `200`：`QuestionDetail`
+
+---
+
+#### `PATCH /questions/:question_id/reviewer-names`
+
+更新题目审题人名称列表（`reviewers` 字符串数组）。
+
+- **认证**：admin / bot
+- **Content-Type**：`application/json`
+- **请求体**：`{ "reviewers": ["string", ...] }`
+- **说明**：自动去重和 trim；允许设为空数组
+
+**成功响应** `200`：`QuestionDetail`
+
+---
+
 #### `POST /questions/:question_id/difficulties`
 
 创建难度条目。
@@ -618,7 +645,7 @@
 
 #### `POST /questions/:question_id/reviewers`
 
-分配审阅人（写入 `question_reviews` 表）。
+分配审阅人（写入 `question_reviews` 表）。目标用户必须为活跃的 `user` 或 `leader` 角色。
 
 - **认证**：leader / bot / admin
 - **Content-Type**：`application/json`
@@ -669,7 +696,7 @@
 
 - **`GET` 操作和 `POST /papers/bundles`**：需要任意已认证角色（`viewer` 及以上）
 - **`POST /papers`（创建）**：需要 `leader` / `bot` / `admin`（即 `can_create_paper` 能力）
-- **`PATCH / PUT / DELETE`（修改/删除）**：admin 可操作任何试卷；leader/bot 只能操作自己创建的试卷
+- **`PATCH / PUT / DELETE`（修改/删除）**：admin/bot 可操作任何试卷；leader 只能操作自己创建的试卷
 - 所有请求需携带 `Authorization: Bearer <access_token>` 头
 
 ---
@@ -829,7 +856,7 @@ curl -X POST http://127.0.0.1:8080/papers \
 
 部分更新试卷元数据和题目列表。
 
-- **认证**：admin 可操作任何试卷；leader/bot 只能操作自己创建的试卷
+- **认证**：admin/bot 可操作任何试卷；leader 只能操作自己创建的试卷
 - **Content-Type**：`application/json`
 - **路径参数**：`paper_id` — UUID
 - **说明**：至少提供一个字段；已软删除试卷返回 `404`
@@ -871,7 +898,7 @@ curl -X POST http://127.0.0.1:8080/papers \
 
 替换试卷的附录 zip 文件。
 
-- **认证**：admin 可操作任何试卷；leader/bot 只能操作自己创建的试卷
+- **认证**：admin/bot 可操作任何试卷；leader 只能操作自己创建的试卷
 - **Content-Type**：`multipart/form-data`
 - **路径参数**：`paper_id` — UUID
 - **大小限制**：≤ 20 MiB
@@ -907,7 +934,7 @@ curl -X POST http://127.0.0.1:8080/papers \
 
 软删除试卷。
 
-- **认证**：admin 可操作任何试卷；leader/bot 只能操作自己创建的试卷
+- **认证**：admin/bot 可操作任何试卷；leader 只能操作自己创建的试卷
 - **路径参数**：`paper_id` — UUID
 
 **行为**：

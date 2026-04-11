@@ -7,9 +7,11 @@ interface Props {
     onChange: (value: string[]) => void
     placeholder?: string
     suggestions?: string[]
+    /** Render badges inline (to the right of the input) instead of below */
+    inline?: boolean
 }
 
-export default function TagInput({ value, onChange, placeholder = "输入后按回车添加", suggestions }: Props) {
+export default function TagInput({ value, onChange, placeholder = "输入后按回车添加", suggestions, inline }: Props) {
     const [input, setInput] = useState("")
     const [showSuggestions, setShowSuggestions] = useState(false)
     const [highlightIndex, setHighlightIndex] = useState(-1)
@@ -77,8 +79,8 @@ export default function TagInput({ value, onChange, placeholder = "输入后按�
     }, [])
 
     return (
-        <Flex direction="column" gap="2" ref={containerRef}>
-            <HStack position="relative">
+        <Flex direction={inline ? "row" : "column"} gap="2" ref={containerRef} align={inline ? "center" : undefined} wrap={inline ? "wrap" : undefined}>
+            <HStack position="relative" flexShrink={0}>
                 <Box flex="1" position="relative">
                     <Input
                         size="sm"

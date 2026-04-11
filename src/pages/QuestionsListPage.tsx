@@ -5,7 +5,6 @@ import {
     Heading,
     HStack,
     Input,
-    IconButton,
     Stack,
     Flex,
     Select,
@@ -20,6 +19,7 @@ import { LuSearch, LuPlus, LuDownload } from "react-icons/lu"
 import { toaster } from "@/components/ui/toaster-instance"
 import QuestionTable from "@/components/QuestionTable"
 import Pagination from "@/components/Pagination"
+import TagInput from "@/components/TagInput"
 
 const LIMIT_DEFAULT = 20
 
@@ -52,7 +52,8 @@ export default function QuestionsListPage() {
     const [diffMin, setDiffMin] = useState("")
     const [diffMax, setDiffMax] = useState("")
     const [paperIdFilter, setPaperIdFilter] = useState("")
-    const [reviewerFilter, setReviewerFilter] = useState("")
+    const [authorFilter, setAuthorFilter] = useState("")
+    const [reviewerFilter, setReviewerFilter] = useState<string[]>([])
     const [createdAfter, setCreatedAfter] = useState("")
     const [createdBefore, setCreatedBefore] = useState("")
     const [updatedAfter, setUpdatedAfter] = useState("")
@@ -105,7 +106,8 @@ export default function QuestionsListPage() {
             ...prev,
             q: search || undefined,
             paper_id: paperIdFilter.trim() || undefined,
-            reviewer: reviewerFilter.trim() || undefined,
+            author: authorFilter.trim() || undefined,
+            reviewer: reviewerFilter.length > 0 ? reviewerFilter.join(",") : undefined,
             score_min: scoreMin ? Number(scoreMin) : undefined,
             score_max: scoreMax ? Number(scoreMax) : undefined,
             difficulty_tag: (diffMin || diffMax) ? (diffTag || "human") : undefined,
@@ -206,212 +208,230 @@ export default function QuestionsListPage() {
             </Flex>
 
             {/* Filters */}
-            <HStack wrap="wrap" gap="2">
-                <Input
-                    placeholder="搜索题目描述..."
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                    onKeyDown={(e) => e.key === "Enter" && handleSearch()}
-                    maxW="300px"
-                    size="sm"
-                />
-                <IconButton aria-label="search" size="sm" onClick={handleSearch}>
-                    <LuSearch />
-                </IconButton>
+            <Stack gap="3" p="3" borderWidth="1px" borderRadius="md">
+                {/* Row 1: Search + Category + Tag + Search button */}
+                <HStack wrap="wrap" gap="2" align="center">
+                    <Input
+                        placeholder="搜索题目描述..."
+                        value={search}
+                        onChange={(e) => setSearch(e.target.value)}
+                        onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+                        maxW="260px"
+                        size="sm"
+                    />
 
-                <Select.Root
-                    collection={categoryOptions}
-                    size="sm"
-                    width="140px"
-                    value={query.category ? [query.category] : [""]}
-                    onValueChange={(e) =>
-                        setQuery((prev) => ({
-                            ...prev,
-                            category: e.value[0] || undefined,
-                            offset: 0,
-                        }))
-                    }
-                >
-                    <Select.HiddenSelect />
-                    <Select.Control>
-                        <Select.Trigger>
-                            <Select.ValueText placeholder="全部分类" />
-                        </Select.Trigger>
-                        <Select.IndicatorGroup>
-                            <Select.Indicator />
-                        </Select.IndicatorGroup>
-                    </Select.Control>
-                    <Portal>
-                        <Select.Positioner>
-                            <Select.Content>
-                                {categoryOptions.items.map((item) => (
-                                    <Select.Item item={item} key={item.value}>
-                                        {item.label}
-                                        <Select.ItemIndicator />
-                                    </Select.Item>
-                                ))}
-                            </Select.Content>
-                        </Select.Positioner>
-                    </Portal>
-                </Select.Root>
+                    <Select.Root
+                        collection={categoryOptions}
+                        size="sm"
+                        width="130px"
+                        value={query.category ? [query.category] : [""]}
+                        onValueChange={(e) =>
+                            setQuery((prev) => ({
+                                ...prev,
+                                category: e.value[0] || undefined,
+                                offset: 0,
+                            }))
+                        }
+                    >
+                        <Select.HiddenSelect />
+                        <Select.Control>
+                            <Select.Trigger>
+                                <Select.ValueText placeholder="全部分类" />
+                            </Select.Trigger>
+                            <Select.IndicatorGroup>
+                                <Select.Indicator />
+                            </Select.IndicatorGroup>
+                        </Select.Control>
+                        <Portal>
+                            <Select.Positioner>
+                                <Select.Content>
+                                    {categoryOptions.items.map((item) => (
+                                        <Select.Item item={item} key={item.value}>
+                                            {item.label}
+                                            <Select.ItemIndicator />
+                                        </Select.Item>
+                                    ))}
+                                </Select.Content>
+                            </Select.Positioner>
+                        </Portal>
+                    </Select.Root>
 
-                <Select.Root
-                    collection={tagOptions}
-                    size="sm"
-                    width="140px"
-                    value={query.tag ? [query.tag] : [""]}
-                    onValueChange={(e) =>
-                        setQuery((prev) => ({
-                            ...prev,
-                            tag: e.value[0] || undefined,
-                            offset: 0,
-                        }))
-                    }
-                >
-                    <Select.HiddenSelect />
-                    <Select.Control>
-                        <Select.Trigger>
-                            <Select.ValueText placeholder="全部标签" />
-                        </Select.Trigger>
-                        <Select.IndicatorGroup>
-                            <Select.Indicator />
-                        </Select.IndicatorGroup>
-                    </Select.Control>
-                    <Portal>
-                        <Select.Positioner>
-                            <Select.Content>
-                                {tagOptions.items.map((item) => (
-                                    <Select.Item item={item} key={item.value}>
-                                        {item.label}
-                                        <Select.ItemIndicator />
-                                    </Select.Item>
-                                ))}
-                            </Select.Content>
-                        </Select.Positioner>
-                    </Portal>
-                </Select.Root>
-            </HStack>
+                    <Select.Root
+                        collection={tagOptions}
+                        size="sm"
+                        width="130px"
+                        value={query.tag ? [query.tag] : [""]}
+                        onValueChange={(e) =>
+                            setQuery((prev) => ({
+                                ...prev,
+                                tag: e.value[0] || undefined,
+                                offset: 0,
+                            }))
+                        }
+                    >
+                        <Select.HiddenSelect />
+                        <Select.Control>
+                            <Select.Trigger>
+                                <Select.ValueText placeholder="全部标签" />
+                            </Select.Trigger>
+                            <Select.IndicatorGroup>
+                                <Select.Indicator />
+                            </Select.IndicatorGroup>
+                        </Select.Control>
+                        <Portal>
+                            <Select.Positioner>
+                                <Select.Content>
+                                    {tagOptions.items.map((item) => (
+                                        <Select.Item item={item} key={item.value}>
+                                            {item.label}
+                                            <Select.ItemIndicator />
+                                        </Select.Item>
+                                    ))}
+                                </Select.Content>
+                            </Select.Positioner>
+                        </Portal>
+                    </Select.Root>
 
-            {/* Advanced filters */}
-            <HStack wrap="wrap" gap="2">
-                <Input
-                    placeholder="试卷 ID"
-                    value={paperIdFilter}
-                    onChange={(e) => setPaperIdFilter(e.target.value)}
-                    onKeyDown={(e) => e.key === "Enter" && handleSearch()}
-                    maxW="280px"
-                    size="sm"
-                />
-                <Input
-                    placeholder="审核人"
-                    value={reviewerFilter}
-                    onChange={(e) => setReviewerFilter(e.target.value)}
-                    onKeyDown={(e) => e.key === "Enter" && handleSearch()}
-                    maxW="140px"
-                    size="sm"
-                />
-                <Input
-                    placeholder="最低分数"
-                    value={scoreMin}
-                    onChange={(e) => setScoreMin(e.target.value)}
-                    onKeyDown={(e) => e.key === "Enter" && handleSearch()}
-                    maxW="100px"
-                    size="sm"
-                    type="number"
-                />
-                <Input
-                    placeholder="最高分数"
-                    value={scoreMax}
-                    onChange={(e) => setScoreMax(e.target.value)}
-                    onKeyDown={(e) => e.key === "Enter" && handleSearch()}
-                    maxW="100px"
-                    size="sm"
-                    type="number"
-                />
-                <Select.Root
-                    collection={diffTagOptions}
-                    size="sm"
-                    width="140px"
-                    value={[diffTag]}
-                    onValueChange={(e) => setDiffTag(e.value[0] || "human")}
-                >
-                    <Select.HiddenSelect />
-                    <Select.Control>
-                        <Select.Trigger>
-                            <Select.ValueText placeholder="难度标签" />
-                        </Select.Trigger>
-                        <Select.IndicatorGroup>
-                            <Select.Indicator />
-                        </Select.IndicatorGroup>
-                    </Select.Control>
-                    <Portal>
-                        <Select.Positioner>
-                            <Select.Content>
-                                {diffTagOptions.items.map((item) => (
-                                    <Select.Item item={item} key={item.value}>
-                                        {item.label}
-                                        <Select.ItemIndicator />
-                                    </Select.Item>
-                                ))}
-                            </Select.Content>
-                        </Select.Positioner>
-                    </Portal>
-                </Select.Root>
-                <Input
-                    placeholder="最低难度"
-                    value={diffMin}
-                    onChange={(e) => setDiffMin(e.target.value)}
-                    onKeyDown={(e) => e.key === "Enter" && handleSearch()}
-                    maxW="100px"
-                    size="sm"
-                    type="number"
-                />
-                <Input
-                    placeholder="最高难度"
-                    value={diffMax}
-                    onChange={(e) => setDiffMax(e.target.value)}
-                    onKeyDown={(e) => e.key === "Enter" && handleSearch()}
-                    maxW="100px"
-                    size="sm"
-                    type="number"
-                />
-            </HStack>
+                    <Button size="sm" onClick={handleSearch} colorPalette="blue" variant="solid">
+                        <LuSearch /> 搜索
+                    </Button>
+                </HStack>
 
-            {/* Date range filters */}
-            <HStack wrap="wrap" gap="2" align="center">
-                <Text fontSize="sm" color="fg.muted" whiteSpace="nowrap">创建时间</Text>
-                <Input
-                    value={createdAfter}
-                    onChange={(e) => { setCreatedAfter(e.target.value); setQuery((p) => ({ ...p, created_after: e.target.value || undefined, offset: 0 })) }}
-                    maxW="160px"
-                    size="sm"
-                    type="date"
-                />
-                <Text fontSize="sm" color="fg.muted">~</Text>
-                <Input
-                    value={createdBefore}
-                    onChange={(e) => { setCreatedBefore(e.target.value); setQuery((p) => ({ ...p, created_before: e.target.value || undefined, offset: 0 })) }}
-                    maxW="160px"
-                    size="sm"
-                    type="date"
-                />
-                <Text fontSize="sm" color="fg.muted" whiteSpace="nowrap">更新时间</Text>
-                <Input
-                    value={updatedAfter}
-                    onChange={(e) => { setUpdatedAfter(e.target.value); setQuery((p) => ({ ...p, updated_after: e.target.value || undefined, offset: 0 })) }}
-                    maxW="160px"
-                    size="sm"
-                    type="date"
-                />
-                <Text fontSize="sm" color="fg.muted">~</Text>
-                <Input
-                    value={updatedBefore}
-                    onChange={(e) => { setUpdatedBefore(e.target.value); setQuery((p) => ({ ...p, updated_before: e.target.value || undefined, offset: 0 })) }}
-                    maxW="160px"
-                    size="sm"
-                    type="date"
-                />
-            </HStack>
+                {/* Row 2: Author + Reviewer (inline tags) + Paper ID */}
+                <HStack wrap="wrap" gap="2" align="center">
+                    <Input
+                        placeholder="命题人"
+                        value={authorFilter}
+                        onChange={(e) => setAuthorFilter(e.target.value)}
+                        onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+                        maxW="140px"
+                        size="sm"
+                    />
+                    <TagInput
+                        value={reviewerFilter}
+                        onChange={setReviewerFilter}
+                        placeholder="审题人（回车添加）"
+                        inline
+                    />
+                    <Input
+                        placeholder="试卷 ID"
+                        value={paperIdFilter}
+                        onChange={(e) => setPaperIdFilter(e.target.value)}
+                        onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+                        maxW="260px"
+                        size="sm"
+                    />
+                </HStack>
+
+                {/* Row 3: Score + Difficulty */}
+                <HStack wrap="wrap" gap="2" align="center">
+                    <Text fontSize="sm" color="fg.muted" whiteSpace="nowrap">分数</Text>
+                    <Input
+                        placeholder="最低"
+                        value={scoreMin}
+                        onChange={(e) => setScoreMin(e.target.value)}
+                        onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+                        maxW="80px"
+                        size="sm"
+                        type="number"
+                    />
+                    <Text fontSize="sm" color="fg.muted">~</Text>
+                    <Input
+                        placeholder="最高"
+                        value={scoreMax}
+                        onChange={(e) => setScoreMax(e.target.value)}
+                        onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+                        maxW="80px"
+                        size="sm"
+                        type="number"
+                    />
+                    <Text fontSize="sm" color="fg.muted" whiteSpace="nowrap" ml="2">难度</Text>
+                    <Select.Root
+                        collection={diffTagOptions}
+                        size="sm"
+                        width="120px"
+                        value={[diffTag]}
+                        onValueChange={(e) => setDiffTag(e.value[0] || "human")}
+                    >
+                        <Select.HiddenSelect />
+                        <Select.Control>
+                            <Select.Trigger>
+                                <Select.ValueText placeholder="难度标签" />
+                            </Select.Trigger>
+                            <Select.IndicatorGroup>
+                                <Select.Indicator />
+                            </Select.IndicatorGroup>
+                        </Select.Control>
+                        <Portal>
+                            <Select.Positioner>
+                                <Select.Content>
+                                    {diffTagOptions.items.map((item) => (
+                                        <Select.Item item={item} key={item.value}>
+                                            {item.label}
+                                            <Select.ItemIndicator />
+                                        </Select.Item>
+                                    ))}
+                                </Select.Content>
+                            </Select.Positioner>
+                        </Portal>
+                    </Select.Root>
+                    <Input
+                        placeholder="最低"
+                        value={diffMin}
+                        onChange={(e) => setDiffMin(e.target.value)}
+                        onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+                        maxW="80px"
+                        size="sm"
+                        type="number"
+                    />
+                    <Text fontSize="sm" color="fg.muted">~</Text>
+                    <Input
+                        placeholder="最高"
+                        value={diffMax}
+                        onChange={(e) => setDiffMax(e.target.value)}
+                        onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+                        maxW="80px"
+                        size="sm"
+                        type="number"
+                    />
+                </HStack>
+
+                {/* Row 4: Date ranges */}
+                <HStack wrap="wrap" gap="2" align="center">
+                    <Text fontSize="sm" color="fg.muted" whiteSpace="nowrap">创建时间</Text>
+                    <Input
+                        value={createdAfter}
+                        onChange={(e) => { setCreatedAfter(e.target.value); setQuery((p) => ({ ...p, created_after: e.target.value || undefined, offset: 0 })) }}
+                        maxW="160px"
+                        size="sm"
+                        type="date"
+                    />
+                    <Text fontSize="sm" color="fg.muted">~</Text>
+                    <Input
+                        value={createdBefore}
+                        onChange={(e) => { setCreatedBefore(e.target.value); setQuery((p) => ({ ...p, created_before: e.target.value || undefined, offset: 0 })) }}
+                        maxW="160px"
+                        size="sm"
+                        type="date"
+                    />
+                    <Text fontSize="sm" color="fg.muted" whiteSpace="nowrap" ml="2">更新时间</Text>
+                    <Input
+                        value={updatedAfter}
+                        onChange={(e) => { setUpdatedAfter(e.target.value); setQuery((p) => ({ ...p, updated_after: e.target.value || undefined, offset: 0 })) }}
+                        maxW="160px"
+                        size="sm"
+                        type="date"
+                    />
+                    <Text fontSize="sm" color="fg.muted">~</Text>
+                    <Input
+                        value={updatedBefore}
+                        onChange={(e) => { setUpdatedBefore(e.target.value); setQuery((p) => ({ ...p, updated_before: e.target.value || undefined, offset: 0 })) }}
+                        maxW="160px"
+                        size="sm"
+                        type="date"
+                    />
+                </HStack>
+            </Stack>
 
             {/* Table */}
             <QuestionTable
