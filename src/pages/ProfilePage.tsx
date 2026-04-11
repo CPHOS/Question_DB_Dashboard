@@ -1,4 +1,4 @@
-import { useState, useEffect, type FormEvent } from "react"
+import { useState, type FormEvent } from "react"
 import {
     Box,
     Button,
@@ -8,12 +8,10 @@ import {
     Stack,
     Text,
     Field,
-    Switch,
 } from "@chakra-ui/react"
 import { useAuth } from "@/contexts/useAuth"
 import * as api from "@/lib/api"
 import { toaster } from "@/components/ui/toaster-instance"
-import { loadPreferences, savePreferences, type UserPreferences } from "@/lib/preferences"
 
 export default function ProfilePage() {
     const { user } = useAuth()
@@ -21,22 +19,6 @@ export default function ProfilePage() {
     const [newPwd, setNewPwd] = useState("")
     const [confirmPwd, setConfirmPwd] = useState("")
     const [loading, setLoading] = useState(false)
-
-    const [prefs, setPrefs] = useState<UserPreferences>({
-        autoFillAuthor: false, authorName: "",
-        autoFillReviewer: false, reviewerName: "",
-    })
-
-    useEffect(() => {
-        if (user) setPrefs(loadPreferences(user.user_id))
-    }, [user])
-
-    const updatePref = <K extends keyof UserPreferences>(key: K, val: UserPreferences[K]) => {
-        if (!user) return
-        const next = { ...prefs, [key]: val }
-        setPrefs(next)
-        savePreferences(user.user_id, next)
-    }
 
     const handleChangePwd = async (e: FormEvent) => {
         e.preventDefault()
@@ -129,62 +111,6 @@ export default function ProfilePage() {
                 </Card.Body>
             </Card.Root>
 
-            <Card.Root>
-                <Card.Header>
-                    <Heading size="md">自动填充设置</Heading>
-                </Card.Header>
-                <Card.Body>
-                    <Stack gap="4">
-                        <Stack gap="2">
-                            <Switch.Root
-                                checked={prefs.autoFillAuthor}
-                                onCheckedChange={(e) => updatePref("autoFillAuthor", e.checked)}
-                            >
-                                <Switch.HiddenInput />
-                                <Switch.Control>
-                                    <Switch.Thumb />
-                                </Switch.Control>
-                                <Switch.Label>自动填充命题人姓名</Switch.Label>
-                            </Switch.Root>
-                            {prefs.autoFillAuthor && (
-                                <Field.Root>
-                                    <Field.Label>命题人姓名</Field.Label>
-                                    <Input
-                                        size="sm"
-                                        value={prefs.authorName}
-                                        onChange={(e) => updatePref("authorName", e.target.value)}
-                                        placeholder="填入默认命题人姓名"
-                                    />
-                                </Field.Root>
-                            )}
-                        </Stack>
-                        <Stack gap="2">
-                            <Switch.Root
-                                checked={prefs.autoFillReviewer}
-                                onCheckedChange={(e) => updatePref("autoFillReviewer", e.checked)}
-                            >
-                                <Switch.HiddenInput />
-                                <Switch.Control>
-                                    <Switch.Thumb />
-                                </Switch.Control>
-                                <Switch.Label>自动填充审题人姓名</Switch.Label>
-                            </Switch.Root>
-                            {prefs.autoFillReviewer && (
-                                <Field.Root>
-                                    <Field.Label>审题人姓名</Field.Label>
-                                    <Input
-                                        size="sm"
-                                        value={prefs.reviewerName}
-                                        onChange={(e) => updatePref("reviewerName", e.target.value)}
-                                        placeholder="填入默认审题人姓名"
-                                    />
-                                    <Text fontSize="xs" color="fg.muted">审阅编辑保存时，若题目允许自动填充，将自动添加此姓名到审题人列表</Text>
-                                </Field.Root>
-                            )}
-                        </Stack>
-                    </Stack>
-                </Card.Body>
-            </Card.Root>
         </Stack>
     )
 }

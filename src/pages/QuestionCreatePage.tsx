@@ -13,22 +13,10 @@ import {
     createListCollection,
 } from "@chakra-ui/react"
 import * as api from "@/lib/api"
-import { useAuth } from "@/contexts/useAuth"
 import { toaster } from "@/components/ui/toaster-instance"
 import { LuArrowLeft } from "react-icons/lu"
 import FileDropzone from "@/components/FileDropzone"
 import TagInput from "@/components/TagInput"
-import DifficultyEditor from "@/components/DifficultyEditor"
-import type { Difficulty } from "@/types"
-import { loadPreferences } from "@/lib/preferences"
-
-function stripUpdatedBy(d: Difficulty): Difficulty {
-    const result: Difficulty = {}
-    for (const [k, v] of Object.entries(d)) {
-        result[k] = { score: v.score, notes: v.notes ?? null }
-    }
-    return result
-}
 
 const categoryOptions = createListCollection({
     items: [
@@ -38,40 +26,18 @@ const categoryOptions = createListCollection({
     ],
 })
 
-const statusOptions = createListCollection({
-    items: [
-        { label: "无", value: "none" },
-        { label: "已审", value: "reviewed" },
-        { label: "已用", value: "used" },
-    ],
-})
-
 export default function QuestionCreatePage() {
     const navigate = useNavigate()
-    const { user } = useAuth()
-    const isUser = user?.role === "user"
     const [loading, setLoading] = useState(false)
     const [description, setDescription] = useState("")
     const [category, setCategory] = useState("none")
-    const [status, setStatus] = useState("none")
-    const [author, setAuthor] = useState("")
-    const [reviewers, setReviewers] = useState<string[]>([])
     const [tags, setTags] = useState<string[]>([])
-    const [difficulty, setDifficulty] = useState<Difficulty>({ human: { score: 5, notes: null } })
     const [file, setFile] = useState<File | null>(null)
     const [tagSuggestions, setTagSuggestions] = useState<string[]>([])
 
     useEffect(() => {
         api.getQuestionTags().then((r) => setTagSuggestions(r.tags)).catch(() => {})
     }, [])
-
-    useEffect(() => {
-        if (!user) return
-        const prefs = loadPreferences(user.user_id)
-        if (prefs.autoFillAuthor && prefs.authorName) {
-            setAuthor(prefs.authorName)
-        }
-    }, [user])
 
     const handleSubmit = async (e: FormEvent) => {
         e.preventDefault()
@@ -90,14 +56,6 @@ export default function QuestionCreatePage() {
             fd.append("file", file)
             fd.append("description", description.trim())
             fd.append("category", category)
-            fd.append("status", status)
-            fd.append("author", author.trim())
-
-            if (!isUser) {
-                fd.append("difficulty", JSON.stringify(stripUpdatedBy(difficulty)))
-                fd.append("reviewers", JSON.stringify(reviewers))
-            }
-
             fd.append("tags", JSON.stringify(tags))
 
             const res = await api.createQuestion(fd)
@@ -135,95 +93,42 @@ export default function QuestionCreatePage() {
                         />
                     </Field.Root>
 
-                    <HStack gap="4">
-                        <Field.Root>
-                            <Field.Label>分类</Field.Label>
-                            <Select.Root
-                                collection={categoryOptions}
-                                size="sm"
-                                value={[category]}
-                                onValueChange={(e) => setCategory(e.value[0] || "none")}
-                            >
-                                <Select.HiddenSelect />
-                                <Select.Control>
-                                    <Select.Trigger>
-                                        <Select.ValueText />
-                                    </Select.Trigger>
-                                    <Select.IndicatorGroup>
-                                        <Select.Indicator />
-                                    </Select.IndicatorGroup>
-                                </Select.Control>
-                                <Portal>
-                                    <Select.Positioner>
-                                        <Select.Content>
-                                            {categoryOptions.items.map((item) => (
-                                                <Select.Item item={item} key={item.value}>
-                                                    {item.label}
-                                                    <Select.ItemIndicator />
-                                                </Select.Item>
-                                            ))}
-                                        </Select.Content>
-                                    </Select.Positioner>
-                                </Portal>
-                            </Select.Root>
-                        </Field.Root>
-
-                        <Field.Root>
-                            <Field.Label>状态</Field.Label>
-                            <Select.Root
-                                collection={statusOptions}
-                                size="sm"
-                                value={[status]}
-                                onValueChange={(e) => setStatus(e.value[0] || "none")}
-                            >
-                                <Select.HiddenSelect />
-                                <Select.Control>
-                                    <Select.Trigger>
-                                        <Select.ValueText />
-                                    </Select.Trigger>
-                                    <Select.IndicatorGroup>
-                                        <Select.Indicator />
-                                    </Select.IndicatorGroup>
-                                </Select.Control>
-                                <Portal>
-                                    <Select.Positioner>
-                                        <Select.Content>
-                                            {statusOptions.items.map((item) => (
-                                                <Select.Item item={item} key={item.value}>
-                                                    {item.label}
-                                                    <Select.ItemIndicator />
-                                                </Select.Item>
-                                            ))}
-                                        </Select.Content>
-                                    </Select.Positioner>
-                                </Portal>
-                            </Select.Root>
-                        </Field.Root>
-                    </HStack>
-
                     <Field.Root>
-                        <Field.Label>命题人</Field.Label>
-                        <Input value={author} onChange={(e) => setAuthor(e.target.value)} placeholder="命题人姓名" />
+                        <Field.Label>分类</Field.Label>
+                        <Select.Root
+                            collection={categoryOptions}
+                            size="sm"
+                            value={[category]}
+                            onValueChange={(e) => setCategory(e.value[0] || "none")}
+                        >
+                            <Select.HiddenSelect />
+                            <Select.Control>
+                                <Select.Trigger>
+                                    <Select.ValueText />
+                                </Select.Trigger>
+                                <Select.IndicatorGroup>
+                                    <Select.Indicator />
+                                </Select.IndicatorGroup>
+                            </Select.Control>
+                            <Portal>
+                                <Select.Positioner>
+                                    <Select.Content>
+                                        {categoryOptions.items.map((item) => (
+                                            <Select.Item item={item} key={item.value}>
+                                                {item.label}
+                                                <Select.ItemIndicator />
+                                            </Select.Item>
+                                        ))}
+                                    </Select.Content>
+                                </Select.Positioner>
+                            </Portal>
+                        </Select.Root>
                     </Field.Root>
-
-                    {!isUser && (
-                        <Field.Root>
-                            <Field.Label>审题人</Field.Label>
-                            <TagInput value={reviewers} onChange={setReviewers} placeholder="输入审题人后按回车添加" />
-                        </Field.Root>
-                    )}
 
                     <Field.Root>
                         <Field.Label>标签</Field.Label>
                         <TagInput value={tags} onChange={setTags} placeholder="输入标签后按回车添加" suggestions={tagSuggestions} />
                     </Field.Root>
-
-                    {!isUser && (
-                        <Field.Root>
-                            <Field.Label>难度评估</Field.Label>
-                            <DifficultyEditor value={difficulty} onChange={setDifficulty} />
-                        </Field.Root>
-                    )}
 
                     <Button type="submit" colorPalette="blue" loading={loading}>
                         创建题目

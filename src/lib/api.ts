@@ -6,7 +6,8 @@ import type {
     Paginated,
     QuestionSummary,
     QuestionDetail,
-    QuestionPatchRequest,
+    CreateDifficultyRequest,
+    UpdateDifficultyRequest,
     QuestionsQuery,
     PaperSummary,
     PaperDetail,
@@ -171,10 +172,51 @@ export async function createQuestion(form: FormData) {
     })
 }
 
-export async function patchQuestion(id: string, body: QuestionPatchRequest) {
-    return request<QuestionDetail>(`/questions/${id}`, {
+export async function patchQuestionDescription(id: string, description: string) {
+    return request<QuestionDetail>(`/questions/${id}/description`, {
+        method: "PATCH",
+        body: JSON.stringify({ description }),
+    })
+}
+
+export async function patchQuestionCategory(id: string, category: "none" | "T" | "E") {
+    return request<QuestionDetail>(`/questions/${id}/category`, {
+        method: "PATCH",
+        body: JSON.stringify({ category }),
+    })
+}
+
+export async function patchQuestionTags(id: string, tags: string[]) {
+    return request<QuestionDetail>(`/questions/${id}/tags`, {
+        method: "PATCH",
+        body: JSON.stringify({ tags }),
+    })
+}
+
+export async function patchQuestionStatus(id: string, status: "none" | "reviewed" | "used") {
+    return request<QuestionDetail>(`/questions/${id}/status`, {
+        method: "PATCH",
+        body: JSON.stringify({ status }),
+    })
+}
+
+export async function createDifficulty(id: string, body: CreateDifficultyRequest) {
+    return request<QuestionDetail>(`/questions/${id}/difficulties`, {
+        method: "POST",
+        body: JSON.stringify(body),
+    })
+}
+
+export async function updateDifficulty(id: string, algorithmTag: string, body: UpdateDifficultyRequest) {
+    return request<QuestionDetail>(`/questions/${id}/difficulties/${encodeURIComponent(algorithmTag)}`, {
         method: "PATCH",
         body: JSON.stringify(body),
+    })
+}
+
+export async function deleteDifficulty(id: string, algorithmTag: string) {
+    return request<QuestionDetail>(`/questions/${id}/difficulties/${encodeURIComponent(algorithmTag)}`, {
+        method: "DELETE",
     })
 }
 

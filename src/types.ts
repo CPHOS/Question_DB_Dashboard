@@ -49,6 +49,7 @@ export type Difficulty = Record<string, DifficultyValue>
 
 export interface QuestionSummary {
     question_id: string
+    source: { tex: string }
     description: string
     category: "none" | "T" | "E"
     tags: string[]
@@ -63,8 +64,14 @@ export interface QuestionSummary {
     updated_at: string
 }
 
+export interface QuestionDetailAsset {
+    path: string
+    object_id: string
+}
+
 export interface QuestionDetail extends QuestionSummary {
-    source_tex_path: string
+    tex_object_id: string | null
+    assets: QuestionDetailAsset[]
     papers: PaperSummary[]
 }
 
@@ -88,16 +95,15 @@ export interface ReviewerInfo {
     created_at: string
 }
 
-export interface QuestionPatchRequest {
-    category?: "none" | "T" | "E"
-    description?: string
-    tags?: string[]
-    status?: "none" | "reviewed" | "used"
-    difficulty?: Difficulty
-    delete_difficulty_tags?: string[]
-    author?: string
-    reviewers?: string[]
-    allow_auto_reviewer?: boolean
+export interface CreateDifficultyRequest {
+    algorithm_tag: string
+    score: number
+    notes?: string
+}
+
+export interface UpdateDifficultyRequest {
+    score: number
+    notes?: string
 }
 
 export interface QuestionsQuery {
