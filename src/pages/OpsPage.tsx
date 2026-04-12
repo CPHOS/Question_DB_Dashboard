@@ -1,4 +1,4 @@
-import { useState, useRef, type FormEvent } from "react"
+import { useState, useRef, useEffect, type FormEvent } from "react"
 import {
     Box,
     Button,
@@ -30,6 +30,14 @@ const formatOptions = createListCollection({
 })
 
 export default function OpsPage() {
+    // Backend version
+    const [backendVersion, setBackendVersion] = useState<string | null>(null)
+    useEffect(() => {
+        api.getVersion()
+            .then((res) => setBackendVersion(res.version))
+            .catch(() => setBackendVersion(null))
+    }, [])
+
     // Export
     const [exportFormat, setExportFormat] = useState<"jsonl" | "csv">("jsonl")
     const [exportPublic, setExportPublic] = useState(false)
@@ -143,7 +151,12 @@ export default function OpsPage() {
 
     return (
         <Stack gap="6">
-            <Heading size="xl">运维操作</Heading>
+            <HStack justify="space-between" align="baseline">
+                <Heading size="xl">运维操作</Heading>
+                {backendVersion && (
+                    <Text fontSize="sm" color="fg.muted">后端版本: <Code>{backendVersion}</Code></Text>
+                )}
+            </HStack>
 
             {/* Database Backup / Restore */}
             <Card.Root>

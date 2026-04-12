@@ -654,7 +654,13 @@ export default function QuestionDetailPage() {
                                 <HStack mb="2" justify="space-between">
                                     <Text fontSize="xs" color="fg.muted">难度</Text>
                                     {canManageDifficulty(role, isAssignedReviewer, q.status) && (
-                                        <Button size="2xs" variant="ghost" onClick={() => openDiffDialog("add")}>
+                                        <Button size="2xs" variant="ghost" onClick={() => {
+                                            const isLeaderPlus = role === "admin" || role === "bot" || role === "leader"
+                                            const defaultTag = isLeaderPlus && !q.difficulty.human
+                                                ? "human"
+                                                : (user?.username ?? "")
+                                            openDiffDialog("add", defaultTag)
+                                        }}>
                                             <LuPlus /> 添加难度
                                         </Button>
                                     )}
@@ -669,13 +675,13 @@ export default function QuestionDetailPage() {
                                         const editorLabel = editor
                                             ? ` · ${editor.display_name || editor.username}`
                                             : ""
-                                        const label = tag === "human" ? "人工难度" : tag
+                                        const label = tag
 
                                         // Reviewer can only edit/delete their own entries
                                         const isOwnEntry = !!(editor && user && editor.user_id === user.user_id)
                                         const canModify = role === "admin" || role === "bot" ||
                                             (role === "leader" && q.status !== "used") ||
-                                            (isAssignedReviewer && isOwnEntry)
+                                            (isAssignedReviewer && isOwnEntry && tag !== "human")
 
                                         return (
                                             <DifficultyBadge
@@ -863,7 +869,7 @@ export default function QuestionDetailPage() {
                                     colorPalette="blue"
                                     onClick={handleDiffDialogSave}
                                     loading={diffDialogSaving}
-                                    disabled={!diffDialogTag.trim()}
+                                    disabled={!diffDialogTag.trim() || (isAssignedReviewer && role === "user" && diffDialogTag.trim() === "human")}
                                 >
                                     {diffDialogMode === "add" ? "添加" : "保存"}
                                 </Button>

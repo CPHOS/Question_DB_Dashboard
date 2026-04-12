@@ -108,6 +108,14 @@ function qs(params: { [key: string]: unknown }): string {
     return s ? `?${s}` : ""
 }
 
+// ─── System ──────────────────────────────────────────────
+
+export async function getVersion(): Promise<{ version: string }> {
+    const res = await fetch(`${BASE}/version`)
+    if (!res.ok) throw new Error(await res.text())
+    return res.json()
+}
+
 // ─── Auth ────────────────────────────────────────────────
 
 export async function login(body: LoginRequest): Promise<TokenResponse> {
