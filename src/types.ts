@@ -127,6 +127,15 @@ export interface QuestionsQuery {
     offset?: number
 }
 
+export type TagFilter =
+    | { type: "tag"; tag: string }
+    | { type: "and" | "or"; children: TagFilter[] }
+    | { type: "not"; child: TagFilter }
+
+export interface QuestionsSearchBody extends QuestionsQuery {
+    tag_filter?: TagFilter
+}
+
 // ─── Papers ──────────────────────────────────────────────
 export interface PaperSummary {
     paper_id: string

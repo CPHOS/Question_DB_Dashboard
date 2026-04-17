@@ -9,6 +9,7 @@ import type {
     CreateDifficultyRequest,
     UpdateDifficultyRequest,
     QuestionsQuery,
+    QuestionsSearchBody,
     PaperSummary,
     PaperDetail,
     PaperPatchRequest,
@@ -160,6 +161,13 @@ export async function changePassword(old_password: string, new_password: string)
 
 export async function getQuestions(q: QuestionsQuery = {}) {
     return request<Paginated<QuestionSummary>>(`/questions${qs({ ...q })}`)
+}
+
+export async function searchQuestions(body: QuestionsSearchBody) {
+    return request<Paginated<QuestionSummary>>("/questions/search", {
+        method: "POST",
+        body: JSON.stringify(body),
+    })
 }
 
 export async function getQuestionTags() {

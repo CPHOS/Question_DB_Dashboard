@@ -10,9 +10,10 @@ import {
     Select,
     Portal,
     Text,
+    Textarea,
     createListCollection,
 } from "@chakra-ui/react"
-import type { QuestionsQuery, QuestionSummary, Paginated } from "@/types"
+import type { QuestionsQuery, QuestionSummary, Paginated, TagFilter } from "@/types"
 import * as api from "@/lib/api"
 import { useAuth } from "@/contexts/useAuth"
 import { LuSearch, LuPlus, LuDownload } from "react-icons/lu"
@@ -22,6 +23,159 @@ import Pagination from "@/components/Pagination"
 import TagInput from "@/components/TagInput"
 
 const LIMIT_DEFAULT = 20
+
+type Token =
+    | { type: "lparen" | "rparen" }
+    | { type: "and" | "or" | "not" }
+    | { type: "tag"; value: string }
+
+function tokenizeTagFilterExpression(input: string): Token[] {
+    const tokens: Token[] = []
+    let i = 0
+
+    while (i < input.length) {
+        const ch = input[i]
+        if (/\s/.test(ch)) {
+            i += 1
+            continue
+        }
+        if (ch === "(") {
+            tokens.push({ type: "lparen" })
+            i += 1
+            continue
+        }
+        if (ch === ")") {
+            tokens.push({ type: "rparen" })
+            i += 1
+            continue
+        }
+        if (ch === "!") {
+            tokens.push({ type: "not" })
+            i += 1
+            continue
+        }
+        if (input.startsWith("&&", i)) {
+            tokens.push({ type: "and" })
+            i += 2
+            continue
+        }
+        if (input.startsWith("||", i)) {
+            tokens.push({ type: "or" })
+            i += 2
+            continue
+        }
+        if (ch === '"' || ch === "'") {
+            const quote = ch
+            i += 1
+            let value = ""
+            while (i < input.length) {
+                const current = input[i]
+                if (current === "\\") {
+                    if (i + 1 >= input.length) break
+                    value += input[i + 1]
+                    i += 2
+                    continue
+                }
+                if (current === quote) break
+                value += current
+                i += 1
+            }
+            if (i >= input.length || input[i] !== quote) {
+                throw new Error("标签字符串缺少结束引号")
+            }
+            if (!value.trim()) {
+                throw new Error("标签不能为空")
+            }
+            tokens.push({ type: "tag", value: value.trim() })
+            i += 1
+            continue
+        }
+
+        let value = ""
+        while (i < input.length) {
+            const current = input[i]
+            if (/\s/.test(current) || current === "(" || current === ")" || current === "!" || input.startsWith("&&", i) || input.startsWith("||", i)) {
+                break
+            }
+            value += current
+            i += 1
+        }
+        const keyword = value.toLowerCase()
+        if (keyword === "and") tokens.push({ type: "and" })
+        else if (keyword === "or") tokens.push({ type: "or" })
+        else if (keyword === "not") tokens.push({ type: "not" })
+        else if (value.trim()) tokens.push({ type: "tag", value: value.trim() })
+        else throw new Error("无法解析高级标签过滤表达式")
+    }
+
+    return tokens
+}
+
+function parseTagFilterExpression(input: string): TagFilter {
+    const tokens = tokenizeTagFilterExpression(input)
+    if (tokens.length === 0) {
+        throw new Error("表达式不能为空")
+    }
+
+    let index = 0
+
+    const current = () => tokens[index]
+    const match = (type: Token["type"]) => current()?.type === type
+
+    const collapse = (type: "and" | "or", children: TagFilter[]): TagFilter => {
+        const flattened = children.flatMap((child) => child.type === type ? child.children : [child])
+        return flattened.length === 1 ? flattened[0] : { type, children: flattened }
+    }
+
+    const parsePrimary = (): TagFilter => {
+        const token = current()
+        if (!token) throw new Error("表达式意外结束")
+        if (token.type === "tag") {
+            index += 1
+            return { type: "tag", tag: token.value }
+        }
+        if (token.type === "lparen") {
+            index += 1
+            const expr = parseOr()
+            if (!match("rparen")) throw new Error("缺少右括号 )")
+            index += 1
+            return expr
+        }
+        throw new Error("这里应为标签或左括号")
+    }
+
+    const parseUnary = (): TagFilter => {
+        if (match("not")) {
+            index += 1
+            return { type: "not", child: parseUnary() }
+        }
+        return parsePrimary()
+    }
+
+    const parseAnd = (): TagFilter => {
+        const children = [parseUnary()]
+        while (match("and")) {
+            index += 1
+            children.push(parseUnary())
+        }
+        return collapse("and", children)
+    }
+
+    const parseOr = (): TagFilter => {
+        const children = [parseAnd()]
+        while (match("or")) {
+            index += 1
+            children.push(parseAnd())
+        }
+        return collapse("or", children)
+    }
+
+    const result = parseOr()
+    if (index < tokens.length) {
+        throw new Error("存在未消费的多余内容")
+    }
+    return result
+}
 
 const categoryOptions = createListCollection({
     items: [
@@ -58,6 +212,9 @@ export default function QuestionsListPage() {
     const [createdBefore, setCreatedBefore] = useState("")
     const [updatedAfter, setUpdatedAfter] = useState("")
     const [updatedBefore, setUpdatedBefore] = useState("")
+    const [showAdvancedTagFilter, setShowAdvancedTagFilter] = useState(false)
+    const [advancedTagFilter, setAdvancedTagFilter] = useState("")
+    const [appliedAdvancedTagFilter, setAppliedAdvancedTagFilter] = useState("")
 
     // Collect unique tags from loaded data for the tag filter
     const [allTags, setAllTags] = useState<string[]>([])
@@ -77,7 +234,12 @@ export default function QuestionsListPage() {
     const load = useCallback(async () => {
         setLoading(true)
         try {
-            const res = await api.getQuestions(query)
+            const parsedTagFilter = appliedAdvancedTagFilter.trim()
+                ? parseTagFilterExpression(appliedAdvancedTagFilter)
+                : undefined
+            const res = parsedTagFilter
+                ? await api.searchQuestions({ ...query, tag_filter: parsedTagFilter })
+                : await api.getQuestions(query)
             setData(res)
             // collect tags
             const tags = new Set<string>()
@@ -91,7 +253,7 @@ export default function QuestionsListPage() {
         } finally {
             setLoading(false)
         }
-    }, [query])
+    }, [appliedAdvancedTagFilter, query])
 
     useEffect(() => { load() }, [load])
 
@@ -102,6 +264,18 @@ export default function QuestionsListPage() {
     }, [])
 
     const handleSearch = () => {
+        if (advancedTagFilter.trim()) {
+            try {
+                parseTagFilterExpression(advancedTagFilter)
+            } catch (e) {
+                toaster.error({
+                    title: "高级标签过滤表达式错误",
+                    description: e instanceof Error ? e.message : "请输入合法的高级标签过滤表达式",
+                })
+                return
+            }
+        }
+        setAppliedAdvancedTagFilter(advancedTagFilter)
         setQuery((prev) => ({
             ...prev,
             q: search || undefined,
@@ -295,7 +469,33 @@ export default function QuestionsListPage() {
                     <Button size="sm" onClick={handleSearch} colorPalette="blue" variant="solid">
                         <LuSearch /> 搜索
                     </Button>
+                    <Button
+                        size="sm"
+                        variant={showAdvancedTagFilter ? "solid" : "outline"}
+                        onClick={() => setShowAdvancedTagFilter((v) => !v)}
+                    >
+                        高级 Tag Filter
+                    </Button>
                 </HStack>
+
+                {showAdvancedTagFilter && (
+                    <Stack gap="2">
+                        <Textarea
+                            value={advancedTagFilter}
+                            onChange={(e) => setAdvancedTagFilter(e.target.value)}
+                            placeholder={'例如：mechanics or (contest and not deprecated)\n也支持：optics && (final || review) && !deprecated\n带空格标签可写成："tag with spaces"'}
+                            size="sm"
+                            minH="120px"
+                            fontFamily="mono"
+                            onKeyDown={(e) => {
+                                if ((e.ctrlKey || e.metaKey) && e.key === "Enter") handleSearch()
+                            }}
+                        />
+                        <Text fontSize="sm" color="fg.muted">
+                            支持 `and` / `or` / `not`、`&&` / `||` / `!` 与括号嵌套。留空时不启用高级筛选。
+                        </Text>
+                    </Stack>
+                )}
 
                 {/* Row 2: Author + Reviewer (inline tags) + Paper ID */}
                 <HStack wrap="wrap" gap="2" align="center">
