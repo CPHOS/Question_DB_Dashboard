@@ -39,7 +39,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const me = await api.getMe()
         if (me.role === "bot") {
             await api.logout()
-            throw new Error("机器人账号不允许通过前端登录")
+            throw new Error("bot 账号不支持网页登录")
         }
         setUser(me)
     }, [])

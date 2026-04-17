@@ -53,6 +53,7 @@ export default function UsersPage() {
     const [newRole, setNewRole] = useState<Role>("viewer")
     const [newLeaderExpires, setNewLeaderExpires] = useState("")
     const [creating, setCreating] = useState(false)
+    const [issuedToken, setIssuedToken] = useState<{ username: string, accessToken: string } | null>(null)
 
     // Edit user dialog
     const [editUser, setEditUser] = useState<User | null>(null)
@@ -92,13 +93,16 @@ export default function UsersPage() {
         e.preventDefault()
         setCreating(true)
         try {
-            await api.adminCreateUser({
+            const created = await api.adminCreateUser({
                 username: newUsername.trim(),
-                password: newPassword,
+                password: newRole === "bot" ? undefined : newPassword,
                 display_name: newDisplayName.trim(),
                 role: newRole,
                 leader_expires_at: newRole === "leader" ? (newLeaderExpires ? new Date(newLeaderExpires).toISOString() : undefined) : undefined,
             })
+            if (created.access_token) {
+                setIssuedToken({ username: created.username, accessToken: created.access_token })
+            }
             toaster.success({ title: "创建成功" })
             setShowCreate(false)
             setNewUsername("")
@@ -127,12 +131,15 @@ export default function UsersPage() {
         if (!editUser) return
         setSaving(true)
         try {
-            await api.adminUpdateUser(editUser.user_id, {
+            const updated = await api.adminUpdateUser(editUser.user_id, {
                 display_name: editDisplayName.trim(),
                 role: editRole,
                 is_active: editActive,
                 leader_expires_at: editRole === "leader" ? (editLeaderExpires ? new Date(editLeaderExpires).toISOString() : undefined) : null,
             })
+            if (updated.access_token) {
+                setIssuedToken({ username: updated.username, accessToken: updated.access_token })
+            }
             toaster.success({ title: "更新成功" })
             setEditUser(null)
             load()
@@ -140,6 +147,18 @@ export default function UsersPage() {
             toaster.error({ title: "更新失败", description: String(err) })
         } finally {
             setSaving(false)
+        }
+    }
+
+    const handleRotateBotAccessToken = async (u: User) => {
+        try {
+            const updated = await api.adminRotateBotAccessToken(u.user_id)
+            if (updated.access_token) {
+                setIssuedToken({ username: updated.username, accessToken: updated.access_token })
+            }
+            toaster.success({ title: "Access Token 已轮换" })
+        } catch (err) {
+            toaster.error({ title: "轮换失败", description: String(err) })
         }
     }
 
@@ -242,9 +261,15 @@ export default function UsersPage() {
                                         <IconButton aria-label="edit" size="xs" variant="ghost" onClick={() => openEdit(u)}>
                                             <LuPencil />
                                         </IconButton>
-                                        <IconButton aria-label="reset-password" size="xs" variant="ghost" colorPalette="orange" onClick={() => { setResetPwdUser(u); setResetNewPwd(""); setResetConfirmPwd("") }}>
-                                            <LuKeyRound />
-                                        </IconButton>
+                                        {u.role === "bot" ? (
+                                            <IconButton aria-label="rotate-access-token" size="xs" variant="ghost" colorPalette="orange" onClick={() => handleRotateBotAccessToken(u)}>
+                                                <LuKeyRound />
+                                            </IconButton>
+                                        ) : (
+                                            <IconButton aria-label="reset-password" size="xs" variant="ghost" colorPalette="orange" onClick={() => { setResetPwdUser(u); setResetNewPwd(""); setResetConfirmPwd("") }}>
+                                                <LuKeyRound />
+                                            </IconButton>
+                                        )}
                                         {u.is_active && (
                                             <IconButton
                                                 aria-label="deactivate"
@@ -295,11 +320,18 @@ export default function UsersPage() {
                                             <Field.Label>用户名</Field.Label>
                                             <Input value={newUsername} onChange={(e) => setNewUsername(e.target.value)} />
                                         </Field.Root>
-                                        <Field.Root required>
-                                            <Field.Label>密码（至少 6 位）</Field.Label>
-                                            <Input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} />
-                                        </Field.Root>
-                                        <Field.Root>
+                                        {newRole !== "bot" && (
+                                            <Field.Root required>
+                                                <Field.Label>密码（至少 6 位）</Field.Label>
+                                                <Input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} />
+                                            </Field.Root>
+                                        )}
+                                        {newRole === "bot" && (
+                                            <Text fontSize="sm" color="fg.muted">
+                                                Bot 账号不再设置密码，创建后会返回一次 Access Token。
+                                            </Text>
+                                        )}
+                                    <Field.Root>
                                             <Field.Label>显示名</Field.Label>
                                             <Input value={newDisplayName} onChange={(e) => setNewDisplayName(e.target.value)} />
                                         </Field.Root>
@@ -480,6 +512,42 @@ export default function UsersPage() {
                                 <Button type="submit" form="resetPwdForm" colorPalette="orange" loading={resetting}>
                                     重置密码
                                 </Button>
+                            </Dialog.Footer>
+                        </Dialog.Content>
+                    </Dialog.Positioner>
+                </Portal>
+            </Dialog.Root>
+
+            <Dialog.Root open={!!issuedToken} onOpenChange={(e) => { if (!e.open) setIssuedToken(null) }}>
+                <Portal>
+                    <Dialog.Backdrop />
+                    <Dialog.Positioner>
+                        <Dialog.Content>
+                            <Dialog.Header>
+                                <Dialog.Title>Bot Access Token</Dialog.Title>
+                            </Dialog.Header>
+                            <Dialog.Body>
+                                <Stack gap="3">
+                                    <Text fontSize="sm" color="fg.muted">
+                                        {issuedToken?.username} 的 Access Token 只会展示这一次，请立即保存给对应 bot 使用。
+                                    </Text>
+                                    <Box
+                                        p="3"
+                                        borderWidth="1px"
+                                        rounded="md"
+                                        fontFamily="mono"
+                                        fontSize="sm"
+                                        whiteSpace="pre-wrap"
+                                        wordBreak="break-all"
+                                    >
+                                        {issuedToken?.accessToken}
+                                    </Box>
+                                </Stack>
+                            </Dialog.Body>
+                            <Dialog.Footer>
+                                <Dialog.ActionTrigger asChild>
+                                    <Button colorPalette="blue">关闭</Button>
+                                </Dialog.ActionTrigger>
                             </Dialog.Footer>
                         </Dialog.Content>
                     </Dialog.Positioner>

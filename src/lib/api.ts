@@ -22,6 +22,7 @@ import type {
     GCResult,
     CreateUserRequest,
     UpdateUserRequest,
+    AdminUserResponse,
     ExportRequest,
     ExportResult,
     QualityCheckRequest,
@@ -362,14 +363,14 @@ export async function searchUsers(q: string, limit = 10) {
 }
 
 export async function adminCreateUser(body: CreateUserRequest) {
-    return request<User>("/admin/users", {
+    return request<AdminUserResponse>("/admin/users", {
         method: "POST",
         body: JSON.stringify(body),
     })
 }
 
 export async function adminUpdateUser(id: string, body: UpdateUserRequest) {
-    return request<User>(`/admin/users/${id}`, {
+    return request<AdminUserResponse>(`/admin/users/${id}`, {
         method: "PATCH",
         body: JSON.stringify(body),
     })
@@ -383,6 +384,13 @@ export async function adminResetPassword(id: string, new_password: string) {
     return request<{ message: string }>(`/admin/users/${id}/reset-password`, {
         method: "POST",
         body: JSON.stringify({ new_password }),
+    })
+}
+
+export async function adminRotateBotAccessToken(id: string) {
+    return request<AdminUserResponse>(`/admin/users/${id}/access-token`, {
+        method: "POST",
+        body: JSON.stringify({}),
     })
 }
 

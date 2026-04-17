@@ -14,9 +14,9 @@ export interface LoginRequest {
 
 export interface TokenResponse {
     access_token: string
-    refresh_token: string
+    refresh_token?: string
     token_type: string
-    expires_in: number
+    expires_in?: number
 }
 
 export type Role = "viewer" | "user" | "leader" | "bot" | "admin"
@@ -194,7 +194,7 @@ export interface GCResult {
 
 export interface CreateUserRequest {
     username: string
-    password: string
+    password?: string
     display_name?: string
     role?: Role
     leader_expires_at?: string | null
@@ -205,6 +205,11 @@ export interface UpdateUserRequest {
     role?: Role
     is_active?: boolean
     leader_expires_at?: string | null
+}
+
+export interface AdminUserResponse extends User {
+    access_token?: string
+    token_type?: string
 }
 
 // ─── Ops ─────────────────────────────────────────────────

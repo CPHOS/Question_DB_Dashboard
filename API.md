@@ -59,7 +59,7 @@
 | HTTP 状态码 | 含义 |
 |---|---|
 | `400` | 请求参数不合法 |
-| `401` | 未认证（缺少 / 无效 / 过期的 access token） |
+| `401` | 未认证（缺少 / 无效 / 过期的 access token，或 bot token 无效） |
 | `403` | 无权限（角色不满足要求） |
 | `404` | 资源不存在（或已软删除） |
 | `409` | 操作冲突（如删除仍被引用的题目、恢复未被删除的记录等） |
@@ -114,19 +114,20 @@
 
 ## Auth — 认证
 
-> 认证和授权接口，基于 JWT access token + 不透明 refresh token。
+> 认证和授权接口。普通用户使用 JWT access token + 不透明 refresh token；bot 使用管理员签发的长期 access token。
 
 ### 概述
 
-- **Access Token**：JWT (HS256)，有效期 **1800 秒（30 分钟）**
-- **Refresh Token**：不透明 UUID 字符串，有效期 **7 天**，一次性消费（轮换）
+- **普通用户 Access Token**：JWT (HS256)，有效期 **1800 秒（30 分钟）**
+- **Bot Access Token**：管理员生成的长期不透明 token，无过期时间，只会在重新签发或停用 bot 后失效
+- **Refresh Token**：仅普通用户可用；不透明 UUID 字符串，有效期 **7 天**，一次性消费（轮换）
 - **传递方式**：`Authorization: Bearer <access_token>`
 - **密码存储**：Argon2id
 - **角色**：5 级角色体系，基于能力而非线性层级
   - `viewer`：只读 + bundle 下载
   - `user`：可上传题目，编辑自己创建的题目，可被分配为审阅人
-  - `leader`：可创建/编辑/删除题目和试卷（非 used），可分配审阅人，也可被分配为审阅人；有过期时间，过期后降级为 user
-  - `bot`：同 leader 权限，无过期时间，用于自动化程序
+  - `leader`：可创建题目和试卷，可编辑/删除非 used 状态的题目，可修改/删除自己创建的试卷，可分配审阅人，也可被分配为审阅人；有过期时间，过期后降级为 user
+  - `bot`：与 admin 相同的数据操作权限（题目/试卷的完整读写），但无 ops 和用户管理权限；不支持用户名密码登录，只能使用管理员签发的长期 access token
   - `admin`：全部权限 + ops + 用户管理 + 垃圾回收
 
 ### 权限矩阵
@@ -137,22 +138,23 @@
 | `POST /auth/login` | ✅ | — | — | — | — | — |
 | `POST /auth/refresh` | ✅ | — | — | — | — | — |
 | `GET /auth/me` | — | ✅ | ✅ | ✅ | ✅ | ✅ |
-| `PATCH /auth/me/password` | — | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `PATCH /auth/me/password` | — | ✅ | ✅ | ✅ | — | ✅ |
 | `POST /auth/logout` | — | ✅ | ✅ | ✅ | ✅ | ✅ |
 | `GET` questions/papers/tags | — | ✅ | ✅ | ✅ | ✅ | ✅ |
 | `POST` bundles | — | ✅ | ✅ | ✅ | ✅ | ✅ |
 | `POST /questions`（上传） | — | — | ✅ | ✅ | ✅ | ✅ |
-| `PATCH /questions/:id`（更新） | — | — | ⚠️¹ | ✅ | ✅ | ✅ |
-| `DELETE /questions/:id` | — | — | — | ✅ | ✅ | ✅ |
+| `PATCH /questions/:id`（更新） | — | — | ⚠️¹ | ⚠️³ | ✅ | ✅ |
+| `DELETE /questions/:id` | — | — | — | ⚠️³ | ✅ | ✅ |
 | `POST /papers`（创建） | — | — | — | ✅ | ✅ | ✅ |
-| `PATCH/PUT/DELETE` papers | — | — | — | ⚠️² | ⚠️² | ✅ |
+| `PATCH/PUT/DELETE` papers | — | — | — | ⚠️² | ✅ | ✅ |
 | 审阅人管理 | — | — | — | ✅ | ✅ | ✅ |
 | `GET /users/search` | — | — | — | ✅ | ✅ | ✅ |
 | ops (exports / quality / db) | — | — | — | — | — | ✅ |
 | `/admin/*` | — | — | — | — | — | ✅ |
 
 ¹ user 只能编辑自己创建的题目（Full）或作为审阅人编辑难度标签（ReviewerOnly）
-² leader/bot 只能操作自己创建的试卷
+² leader 只能操作自己创建的试卷
+³ leader 限于非 used 状态的题目；详见 Questions API
 
 ### 环境变量
 
@@ -170,13 +172,15 @@
 
 **请首次登录后立即修改密码。**
 
+Bot 账号不会自动生成；管理员创建或轮换 bot 账号时，接口会返回一次 access token，后端只保存其哈希值。
+
 ---
 
 ### Endpoints
 
 #### `POST /auth/login`
 
-用户名密码登录，获取 token 对。
+用户名密码登录，获取 token 对。仅适用于非 bot 账号。
 
 - **认证**：无需
 - **Content-Type**：`application/json`
@@ -211,7 +215,7 @@
 | 状态码 | 场景 |
 |---|---|
 | `400` | 缺少 username 或 password |
-| `401` | 用户名或密码错误 / 账号已停用 |
+| `401` | 用户名或密码错误 / 账号已停用 / bot 账号必须使用管理员签发的 access token |
 
 ---
 
@@ -312,9 +316,9 @@
 
 #### `PATCH /auth/me/password`
 
-修改当前用户密码。
+修改当前用户密码。bot 账号不支持该操作。
 
-- **认证**：`viewer` 及以上
+- **认证**：`viewer` / `user` / `leader` / `admin`
 - **Content-Type**：`application/json`
 
 **请求体**：
@@ -380,7 +384,7 @@
 
 > 题目的增删改查、文件替换、审阅人管理、难度管理和批量打包接口。
 
-所有请求需携带 `Authorization: Bearer <access_token>` 头。
+所有请求需携带 `Authorization: Bearer <access_token>` 头。普通账号使用 JWT access token；bot 使用管理员签发的长期 access token。
 
 #### 权限模型（Trait-based）
 
@@ -393,7 +397,7 @@
 | 修改 category | ✅ (自己的) | ✅ (非 used) | — | ✅ |
 | 修改 tags | ✅ (自己的) | ✅ (非 used) | ✅ (被分配的) | ✅ |
 | 替换 file | ✅ (自己的) | ✅ (非 used) | — | ✅ |
-| 修改 status | — | ✅ (none/reviewed) | — | ✅ (任意) |
+| 修改 status | — | ✅ (非 used 题目, none/reviewed) | — | ✅ (任意) |
 | 修改 author | — | — | — | ✅ |
 | 修改 reviewer names | — | — | — | ✅ |
 | 创建难度 | — | ✅ (非 used) | ✅ (被分配的) | ✅ |
@@ -410,6 +414,7 @@
 - 替换文件时，后端自动重置 difficulty（清空）、status（`none`）、author（创建者 display_name）、reviewers（`[]`）
 - 上传时，后端自动设置 difficulty 为空、status 为 `none`、author 为上传者 display_name、reviewers 为 `[]`
 - 后端自动维护 `created_by`、`created_at`、`updated_at`
+- 题目创建者（`created_by`）始终可修改自己题目的 description、category、tags 和 file，不受 status 限制
 
 ---
 
@@ -568,7 +573,7 @@
 
 更新题目状态。
 
-- **认证**：leader（只能设 `"none"` 或 `"reviewed"`）/ admin / bot（任意合法值）
+- **认证**：leader（非 used 题目，只能设 `"none"` 或 `"reviewed"`）/ admin / bot（任意合法值）
 - **Content-Type**：`application/json`
 - **请求体**：`{ "status": "none" | "reviewed" | "used" }`
 
@@ -697,7 +702,7 @@
 - **`GET` 操作和 `POST /papers/bundles`**：需要任意已认证角色（`viewer` 及以上）
 - **`POST /papers`（创建）**：需要 `leader` / `bot` / `admin`（即 `can_create_paper` 能力）
 - **`PATCH / PUT / DELETE`（修改/删除）**：admin/bot 可操作任何试卷；leader 只能操作自己创建的试卷
-- 所有请求需携带 `Authorization: Bearer <access_token>` 头
+- 所有请求需携带 `Authorization: Bearer <access_token>` 头；普通账号使用 JWT access token，bot 使用管理员签发的长期 access token
 
 ---
 
@@ -1017,7 +1022,7 @@ manifest.json
 > 运维操作接口：数据导出、质量检查、数据库备份与恢复。批量打包接口见 [Questions API](../src/api/questions/API.md) 和 [Papers API](../src/api/papers/API.md)。
 
 - 所有 Ops 接口需要 `admin` 角色
-- 所有请求需携带 `Authorization: Bearer <access_token>` 头
+- 所有请求需携带 `Authorization: Bearer <access_token>` 头；此处仅接受管理员的 JWT access token
 
 ---
 
@@ -1188,8 +1193,9 @@ manifest.json
 > 管理员接口：查看/恢复软删除数据、垃圾回收、用户管理。
 
 - 所有 `/admin/*` 接口需要 `admin` 角色
-- 所有请求需携带 `Authorization: Bearer <access_token>` 头
+- 所有请求需携带 `Authorization: Bearer <access_token>` 头；此处仅接受管理员的 JWT access token
 - `deleted_by` 返回执行删除操作的用户 UUID（鉴权上线前创建的记录该字段为 `null`）
+- bot 账号不支持密码登录；管理员创建 bot 或轮换 token 时，接口只返回一次明文 access token
 
 ---
 
@@ -1383,7 +1389,7 @@ manifest.json
 | 字段 | 类型 | 必填 | 默认值 | 说明 |
 |---|---|---|---|---|
 | `username` | string | ✅ | — | 用户名，trim 后非空，唯一 |
-| `password` | string | ✅ | — | 密码，长度 ≥ 6 |
+| `password` | string | 条件必填 | — | 非 bot 账号必填，长度 ≥ 6；bot 账号不可传 |
 | `display_name` | string | — | `""` | 显示名 |
 | `role` | `"viewer"` \| `"user"` \| `"leader"` \| `"bot"` \| `"admin"` | — | `"viewer"` | 角色 |
 | `leader_expires_at` | string(RFC 3339) | 条件必填 | — | Leader 角色过期时间；角色为 `leader` 时必填 |
@@ -1398,13 +1404,22 @@ manifest.json
 }
 ```
 
-**成功响应** `200`：`UserProfile` 对象。
+**成功响应** `200`：`AdminUserResponse`。
+
+普通账号返回字段与 `UserProfile` 相同。
+
+如果创建的是 bot，还会额外返回：
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `access_token` | string | 新生成的 bot access token，仅本次响应可见 |
+| `token_type` | `"Bearer"` | 固定值 |
 
 **错误**：
 
 | 状态码 | 场景 |
 |---|---|
-| `400` | 参数校验失败 / leader 角色未提供 leader_expires_at |
+| `400` | 参数校验失败 / leader 角色未提供 leader_expires_at / bot 账号错误传入 password |
 | `409` | 用户名已存在 |
 
 ---
@@ -1438,8 +1453,12 @@ manifest.json
 
 - 不允许管理员将自己设为 `is_active=false`
 - 设置 `role` 为 `leader` 时，必须在当次请求或用户已有记录中提供 `leader_expires_at`
+- 设置 `role` 为 `bot` 时，会清除密码登录方式并签发一个新的 access token
+- 将 `bot` 改回非 bot 角色时，会清除 bot access token；如需密码登录，随后应调用 `POST /admin/users/:user_id/reset-password`
 
-**成功响应** `200`：更新后的 `UserProfile`。
+**成功响应** `200`：更新后的 `AdminUserResponse`。
+
+只有“首次切换为 bot”的这次响应会额外包含 `access_token` 和 `token_type`。
 
 **错误**：
 
@@ -1461,6 +1480,7 @@ manifest.json
 
 - 设置 `is_active = false`
 - 撤销该用户的所有 refresh token
+- 如果是 bot，其 access token 也会立即失效（鉴权时检查 `is_active`）
 - 不允许停用自己
 
 **成功响应** `200`：
@@ -1482,7 +1502,7 @@ manifest.json
 
 #### `POST /admin/users/:user_id/reset-password`
 
-管理员重置指定用户密码。
+管理员重置指定用户密码。bot 账号不支持该操作。
 
 - **认证**：`admin`
 - **路径参数**：`user_id` — UUID
@@ -1517,5 +1537,31 @@ manifest.json
 
 | 状态码 | 场景 |
 |---|---|
-| `400` | 密码长度不足 6 |
+| `400` | 密码长度不足 6 / 目标用户是 bot |
+| `404` | 用户不存在 |
+
+---
+
+#### `POST /admin/users/:user_id/access-token`
+
+为 bot 账号轮换 access token。
+
+- **认证**：`admin`
+- **路径参数**：`user_id` — UUID
+- **Content-Type**：`application/json`
+- **请求体**：`{}`
+
+**行为**：
+
+- 仅允许目标用户当前角色为 `bot`
+- 覆盖旧 token，并返回新的明文 token（旧 token 立即失效）
+- 撤销该用户历史 refresh token（兼容旧数据）
+
+**成功响应** `200`：`AdminUserResponse`，其中一定包含 `access_token` 和 `token_type`。
+
+**错误**：
+
+| 状态码 | 场景 |
+|---|---|
+| `400` | 目标用户不是 bot |
 | `404` | 用户不存在 |

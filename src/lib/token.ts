@@ -9,9 +9,13 @@ export function getRefreshToken(): string | null {
     return localStorage.getItem(REFRESH_KEY)
 }
 
-export function setTokens(access: string, refresh: string) {
+export function setTokens(access: string, refresh?: string | null) {
     localStorage.setItem(TOKEN_KEY, access)
-    localStorage.setItem(REFRESH_KEY, refresh)
+    if (refresh) {
+        localStorage.setItem(REFRESH_KEY, refresh)
+    } else {
+        localStorage.removeItem(REFRESH_KEY)
+    }
 }
 
 export function clearTokens() {
