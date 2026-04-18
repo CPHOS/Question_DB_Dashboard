@@ -425,7 +425,6 @@ export default function QuestionDetailPage() {
                 <Card.Root>
                     <Card.Body>
                         <Stack gap="3">
-                            <Text fontSize="sm" color="orange.fg">替换文件将重置难度、状态、命题人和审题人</Text>
                             <FileDropzone
                                 onFileChange={(file) => { if (file) handleFileReplace(file) }}
                                 label={replacingFile ? "上传中..." : "拖放 ZIP 文件到此处替换"}
