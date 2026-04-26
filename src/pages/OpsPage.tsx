@@ -99,7 +99,7 @@ export default function OpsPage() {
             const url = URL.createObjectURL(blob)
             const a = document.createElement("a")
             a.href = url
-            a.download = `qb_backup_${new Date().toISOString().slice(0, 10)}.sql`
+            a.download = `qb_backup_${new Date().toISOString().slice(0, 10)}.tar.gz`
             document.body.appendChild(a)
             a.click()
             a.remove()
@@ -183,14 +183,14 @@ export default function OpsPage() {
                             </Button>
                             <input
                                 type="file"
-                                accept=".sql"
+                                accept=".tar.gz,.sql"
                                 ref={fileInputRef}
                                 onChange={handleFileChange}
                                 style={{ display: "none" }}
                             />
                         </HStack>
                         <Text fontSize="sm" color="fg.muted">
-                            备份将下载完整的 SQL 文件。恢复操作会覆盖当前数据库全部内容，请谨慎操作。
+                            备份将下载包含数据库元数据和对象文件的 .tar.gz 归档。恢复操作会覆盖当前数据库全部内容及对象存储，请谨慎操作。支持上传 .tar.gz 或 legacy .sql 文件恢复。
                         </Text>
                         {restoreResult && (
                             <Box>

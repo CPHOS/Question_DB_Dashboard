@@ -66,13 +66,23 @@ export interface QuestionSummary {
 
 export interface QuestionDetailAsset {
     path: string
+    file_kind: string
     object_id: string
+    mime_type: string | null
+}
+
+export interface QuestionDetailPaper {
+    paper_id: string
+    description: string
+    title: string
+    subtitle: string
+    sort_order: number
 }
 
 export interface QuestionDetail extends QuestionSummary {
     tex_object_id: string | null
     assets: QuestionDetailAsset[]
-    papers: PaperSummary[]
+    papers: QuestionDetailPaper[]
 }
 
 export interface AdminQuestionSummary extends QuestionSummary {
