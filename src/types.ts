@@ -259,3 +259,36 @@ export interface DatabaseRestoreResult {
     restored_bytes: number
     status: string
 }
+
+// ─── Audit log ───────────────────────────────────────────
+
+export interface AuditLogEntry {
+    id: number
+    created_at: string
+    method: string
+    path: string
+    query: string | null
+    status_code: number
+    duration_ms: number
+    user_id: string | null
+    username: string | null
+    role: string | null
+    client_ip: string | null
+    user_agent: string | null
+}
+
+export interface AuditLogsQuery {
+    limit?: number
+    offset?: number
+    method?: string
+    /** substring match on request path */
+    path?: string
+    user_id?: string
+    /** substring match on username */
+    username?: string
+    status_min?: number
+    status_max?: number
+    /** YYYY-MM-DD or full RFC 3339 */
+    created_after?: string
+    created_before?: string
+}

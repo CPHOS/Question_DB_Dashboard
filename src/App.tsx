@@ -19,6 +19,7 @@ import AdminQuestionsPage from "@/pages/admin/AdminQuestionsPage"
 import AdminPapersPage from "@/pages/admin/AdminPapersPage"
 import GCPage from "@/pages/admin/GCPage"
 import UsersPage from "@/pages/admin/UsersPage"
+import AuditLogsPage from "@/pages/admin/AuditLogsPage"
 
 export default function App() {
   const basename = import.meta.env.BASE_URL.replace(/\/+$/, "")
@@ -59,6 +60,7 @@ export default function App() {
               <Route path="papers" element={<AdminPapersPage />} />
               <Route path="gc" element={<GCPage />} />
               <Route path="users" element={<UsersPage />} />
+              <Route path="audit-logs" element={<AuditLogsPage />} />
               <Route path="ops" element={<OpsPage />} />
             </Route>
 

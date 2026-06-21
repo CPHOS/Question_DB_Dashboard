@@ -29,6 +29,8 @@ import type {
     QualityCheckRequest,
     QualityCheckResult,
     ReviewerInfo,
+    AuditLogEntry,
+    AuditLogsQuery,
 } from "@/types"
 
 const BASE = import.meta.env.VITE_API_BASE ?? "http://127.0.0.1:8080"
@@ -429,6 +431,16 @@ export async function databaseRestore(form: FormData) {
         method: "POST",
         body: form,
     })
+}
+
+// ─── Audit log (admin) ──────────────────────────────────
+
+export async function adminGetAuditLogs(q: AuditLogsQuery = {}) {
+    return request<Paginated<AuditLogEntry>>(`/audit/logs${qs({ ...q })}`)
+}
+
+export async function adminExportAuditLogs(q: AuditLogsQuery = {}) {
+    return request<Blob>(`/audit/logs/export${qs({ ...q })}`)
 }
 
 // ─── System ──────────────────────────────────────────────
